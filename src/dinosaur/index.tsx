@@ -2,6 +2,7 @@ import React from 'react';
 
 import DinoGame, {Player} from './game';
 import GA, {ActivationFunctions} from './GA/ga';
+import Individual from './GA/individual';
 
 const WIDTH = 800;
 const HEIGHT = 400;
@@ -15,6 +16,9 @@ interface DinoState {
 export default class extends React.Component<any, DinoState> {
 	private game: DinoGame | null = null;
 	private user_player: Player | null = null;
+	private ai_player: Player | null = null;
+
+	private best_individual: Individual | null = null;
 
 	private iterations = 1;
 
@@ -38,6 +42,9 @@ export default class extends React.Component<any, DinoState> {
 		window.addEventListener('keyup', this.onKeyUp.bind(this), false);
 
 		this.startEvolution();//temp
+
+		//run loop
+		this.tick_binded();
 	}
 
 	componentWillUnmount() {
@@ -72,40 +79,41 @@ export default class extends React.Component<any, DinoState> {
 	}
 
 	startUserGame() {
-		if(this.game && !this.game.isOver()) {
-			console.log('game already running');
-			return;
-		}
+		this.iterations = 1;
 		this.game = new DinoGame();
 		this.user_player = this.game.start(1)[0];
-		this.ga = null;
+		this.ai_player = null;
+	}
 
-		//run loop
-		this.tick_binded();
+	startAIGame() {
+		this.iterations = 1;
+		this.game = new DinoGame();
+		this.user_player = null;
+		this.ai_player = this.game.start(1)[0];
 	}
 
 	startEvolution() {
-		if(this.game && !this.game.isOver()) {
-			console.log('game already running');
-			return;
-		}
-
 		this.game = new DinoGame();
 		this.game.start(POPULATION);
-		this.ga = new GA(POPULATION, {inputs: 4, hidden_layers: [16, 8], outputs: 2}, 
-			ActivationFunctions.tanh);
-
-		this.tick_binded();
+		this.user_player = null;
+		this.ai_player = null;
+		if(this.ga === null) {
+			this.ga = new GA(POPULATION, {inputs: 4, hidden_layers: [16, 8], outputs: 2}, 
+				ActivationFunctions.tanh);
+		}
 	}
 
 	tick() {
-		if(!this.game || this.game.isOver())
+		if(!this.game || this.game.isOver()) {
+			requestAnimationFrame(this.tick_binded);
 			return;
+		}
 
 		for(let i=0; i<this.iterations; i++) {
 			let players = this.game.getPlayers();
-			let individuals;
-			if(this.ga) {
+			let individuals: Individual[] | null = null;
+
+			if(this.ga && this.user_player === null) {
 				individuals = this.ga.getIndividuals();
 				for(let i=0; i<individuals.length && i<players.length; i++) {
 					if(!players[i].alive)
@@ -128,15 +136,36 @@ export default class extends React.Component<any, DinoState> {
 						players[i].jump();
 				}
 			}
+			else if(this.ga && this.ai_player !== null && this.best_individual) {
+				let nearest_obstacle = this.game.getNearestObstacle(players[i]);
+				let bot_input = [
+					players[i].y, 
+					(nearest_obstacle.x+nearest_obstacle.width)-(players[i].x-players[i].width), 
+					nearest_obstacle.y,
+					this.game.getSpeed()
+				];
+
+				let nn_result = this.best_individual.action(bot_input);
+					
+				if(nn_result[1] > 0)
+					this.ai_player.duck(true);
+				else
+					this.ai_player.duck(false);
+				if(nn_result[0] > 0)
+					this.ai_player.jump();
+			}
 
 			this.game.update();
 
-			if(this.game.isOver() && individuals && this.ga) {
+			if(this.game.isOver() && individuals && this.ga && this.user_player === null && 
+				this.ai_player === null) 
+			{
 				for(let i=0; i<individuals.length && i<players.length; i++) {
 					individuals[i].setScore( players[i].score );// / this.game.getScore();
 					//console.log(individuals[i].score);
 				}
 				this.ga.evolve();
+				this.best_individual = this.ga.getBest().clone();
 
 				console.log('evolving generation:', this.ga.generation, 
 					'best score:', this.ga.best_score);
@@ -191,8 +220,23 @@ export default class extends React.Component<any, DinoState> {
 	render() {
 		return <div>
 			<nav style={{margin: '10px 0px'}}>
-				<button onClick={this.startUserGame.bind(this)}>PLAY</button>
-				<button onClick={this.startEvolution.bind(this)}>RUN EVOLUTION</button>
+				<button onClick={event => {
+					this.startUserGame();
+					//@ts-ignore
+					event.nativeEvent.target.blur();
+				}}>PLAY</button>
+				<button onClick={event => {
+					this.startEvolution();
+					//@ts-ignore
+					event.nativeEvent.target.blur();
+				}}>RUN EVOLUTION</button>
+				<button onClick={event => {
+					this.startAIGame();
+					//@ts-ignore
+					event.nativeEvent.target.blur();
+				}}>PLAY AI</button>
+				<br />
+				<label>Iterations:</label>
 				<input type='number' min={1} defaultValue='1' onChange={e => {
 					this.iterations = parseInt(e.target.value);
 				}} />
