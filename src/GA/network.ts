@@ -1,3 +1,12 @@
+import EvolutionCapable from './evolution_capable';
+
+export interface BrainParams {
+	inputs: number;
+	hidden_layers: number[];
+	outputs: number;
+	activation?: (x: number) => number;
+}
+
 export const ActivationFunctions = {
 	sigmoid: (x: number) => {
 		return 1.0 / (1.0 + Math.exp(-x));//1 / (1 + e^(-x))
@@ -10,15 +19,22 @@ export const ActivationFunctions = {
 	}
 };
 
-export default class Network {
+export default class Network implements EvolutionCapable {
 	private weights: Float32Array[];
 	private nodes: Float32Array[];
 
-	constructor(inputs: number, hidden_layers: number[], outputs: number) {
+	private params: BrainParams;
+	private activation: (x: number) => number;
+
+	constructor(_params: BrainParams) {
+		this.activation = _params.activation || ActivationFunctions.sigmoid;
+		this.params = _params;
+		this.params.activation = this.activation;
+
 		this.nodes = [];
 		this.weights = [];
 
-		for(let h_nodes of [inputs, ...hidden_layers, outputs])
+		for(let h_nodes of [_params.inputs, ..._params.hidden_layers, _params.outputs])
 			this.addLayer(h_nodes);
 
 		this.randomizeWeights();
@@ -32,12 +48,19 @@ export default class Network {
 		return this.nodes[this.nodes.length-1];
 	}
 
-	public clone() {
-		let hidden: number[] = [];
-		for(let i=1; i<this.nodes.length-1; i++)
-			hidden.push(this.nodes[i].length);
+	public get memory_used() {
+		let values = 0;
+		this.weights.forEach(w => values += w.length);
+		this.nodes.forEach(n => values += n.length);
+		return values*4;// * 4 bytes becouse of Float32Array 
+	}
 
-		let copy = new Network(this.input_nodes.length, hidden, this.output_nodes.length);
+	public clone() {
+		//let hidden: number[] = [];
+		//for(let i=1; i<this.nodes.length-1; i++)
+		//	hidden.push(this.nodes[i].length);
+
+		let copy = new Network(this.params);
 		copy.copyWeights(this.weights);
 		return copy;
 	}
@@ -69,7 +92,7 @@ export default class Network {
 		}
 	}
 
-	public calculateOutput(input: Float32Array | number[], activation: (x: number) => number) {
+	public calculateOutput(input: Float32Array | number[]) {
 		for(let i=0; i<input.length && i<this.input_nodes.length; i++)
 			this.input_nodes[i] = input[i];
 
@@ -85,7 +108,7 @@ export default class Network {
 				}
 
 				//apply activation function
-				this.nodes[i][j] = activation(this.nodes[i][j]);
+				this.nodes[i][j] = this.activation(this.nodes[i][j]);
 				//ActivationFunctions.tanh(this.nodes[i][j]);
 			}
 		}

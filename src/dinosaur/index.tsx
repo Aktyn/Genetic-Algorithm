@@ -100,8 +100,12 @@ export default class extends React.Component<any, DinoState> {
 		this.user_player = null;
 		this.ai_player = null;
 		if(this.ga === null) {
-			this.ga = new GA(POPULATION, {inputs: 4, hidden_layers: [16, 8], outputs: 2}, 
-				ActivationFunctions.tanh);
+			this.ga = new GA(POPULATION, {}, {
+				inputs: 4, 
+				hidden_layers: [16, 8], 
+				outputs: 2,
+				activation: ActivationFunctions.tanh
+			});
 		}
 	}
 

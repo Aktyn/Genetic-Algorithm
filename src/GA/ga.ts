@@ -1,18 +1,37 @@
-import Individual, {BrainParams} from './individual';
+import Individual from './individual';
+import {BrainParams} from './network';
 export {ActivationFunctions} from './network';
-//import {ActivationFunctions} from './network';//tmp for tests
+
+import {BufferParams} from './buffer1d';
+
+interface ParamsBase {
+	mutation_chance: number;
+	mutation_scale: number;
+	elitism: number;
+	dna_twist_chance: number;
+}
 
 export default class GA {
 	private individuals: Individual[];//population
-	private elitism = 2;//preserves N best individuals into next generation
 	public generation = 0;
 
 	public best_score = 0;
 
-	constructor(population: number, network_params: BrainParams, activation: (x: number)=>number) {
+	private params: ParamsBase;
+
+	constructor(population: number, params: Partial<ParamsBase> = {}, 
+		individual_params: BrainParams | BufferParams) 
+	{
+		this.params = {
+			mutation_chance: params.mutation_chance || 0.1, 
+			mutation_scale: params.mutation_scale || 0.5,
+			elitism: params.elitism || 2,
+			dna_twist_chance: params.dna_twist_chance || 0.5
+		};
+
 		this.individuals = [];
 		for(let i=0; i<population; i++)
-			this.individuals.push( new Individual(network_params, activation) );
+			this.individuals.push( new Individual(individual_params) );
 	}
 
 	getIndividuals() {
@@ -74,13 +93,14 @@ export default class GA {
 
 		let new_generation: Individual[] = [];
 
-		for(let i=0; i<this.elitism; i++)
+		for(let i=0; i<this.params.elitism; i++)
 			new_generation.push(this.individuals[i].clone());
 
         //breeding new generation
-        for (let i=this.elitism; i<this.individuals.length; i++) {
-           	let child = Individual.crossover(this.selection(), this.selection());
-            child.mutate();
+        for (let i=this.params.elitism; i<this.individuals.length; i++) {
+           	let child = Individual.crossover(this.selection(), this.selection(), 
+           		this.params.dna_twist_chance);
+            child.mutate(this.params.mutation_chance, this.params.mutation_scale);
            
           	new_generation.push(child);
         }
@@ -88,48 +108,3 @@ export default class GA {
         this.individuals = new_generation;
 	}
 }
-
-/*(() => {
-	console.log('test');
-
-	function randomColor() {
-		return [Math.random(), Math.random(), Math.random()];
-	}
-
-	const POP = 50;
-	const EPOCHS = 100000;
-	const ITERATIONS_PER_EPOCH = 5;
-
-	let ga = new GA(POP, {
-		inputs: 3,
-		hidden_layers: [10],
-		outputs: 3
-	}, ActivationFunctions.sigmoid);
-
-	for(let i=0; i<EPOCHS; i++) {//epochs
-		let max_score = 0, avg_score = 0;
-		for(let individual of ga.getIndividuals()) {
-			let score = 0;
-
-			for(let iteration=0; iteration<ITERATIONS_PER_EPOCH; iteration++) {
-				let c = randomColor();
-				let predicted_negative = individual.action(c);
-				for(let ci=0; ci<3; ci++)
-					score += 1 - Math.abs( (1.0 - c[ci]) - predicted_negative[ci] );
-			}
-
-			if(score > max_score)
-				max_score = score;
-			avg_score += score;
-			individual.setScore(score);
-		}
-		if(i < EPOCHS-1)
-			ga.evolve();
-
-		if(i%100 === 0)
-			console.log('evolved', max_score, avg_score / ga.getIndividuals().length);
-	}
-
-	let best = ga.getBest();
-	console.log( best.action([0.9, 0.5, 0.1]) );
-})();*/
