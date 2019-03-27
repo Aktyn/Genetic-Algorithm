@@ -1,8 +1,8 @@
 import React from 'react';
 
 import DinoGame, {Player} from './game';
-import GA, {ActivationFunctions} from './GA/ga';
-import Individual from './GA/individual';
+import GA, {ActivationFunctions} from './../GA/ga';
+import Individual from './../GA/individual';
 
 const WIDTH = 800;
 const HEIGHT = 400;
