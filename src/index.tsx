@@ -4,12 +4,16 @@ import { BrowserRouter, Route, Switch } from 'react-router-dom';
 
 import './styles/main.scss';
 
-import Dinosaur from './dinosaur/index';
+import Menu from './menu';
+import Dinosaur from './dinosaur';
+import Reconstructor from './reconstructor';
 
 render(
     <BrowserRouter>
 		<Switch>
-    		<Route path="*" exact component={Dinosaur} />
+			<Route path="/dino" exact component={Dinosaur} />
+			<Route path="/reconstructor" exact component={Reconstructor} />
+    		<Route path="*" exact component={Menu} />
 		</Switch>
   	</BrowserRouter>,
     document.getElementById('page'),

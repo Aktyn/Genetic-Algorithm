@@ -34,6 +34,13 @@ a {
     text-decoration: none;
     color: inherit;
     outline: none;
+
+    &:hover {
+        color: #ef5350;
+    }
+    &:active {
+        color: #ef9a9a;
+    }
 }
 
 hr {

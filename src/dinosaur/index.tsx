@@ -50,6 +50,8 @@ export default class extends React.Component<any, DinoState> {
 	componentWillUnmount() {
 		window.removeEventListener('keydown', this.onKeyDown.bind(this), false);
 		window.removeEventListener('keyup', this.onKeyUp.bind(this), false);
+		this.game = null;
+		this.ga = null;
 	}
 
 	onKeyDown(e: KeyboardEvent) {
