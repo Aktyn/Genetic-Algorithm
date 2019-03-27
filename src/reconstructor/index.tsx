@@ -148,6 +148,7 @@ export default class Reconstructor extends React.Component<any, ReconstructorSta
 			//x1, y1, x2, y2, x3, y3, r, g, b
 			this.preview_ctxs[i].fillStyle = '#fff';
 			this.preview_ctxs[i].fillRect(0, 0, INPUT_W, INPUT_H);
+			//this.preview_ctxs[i].lineWidth = INPUT_H*0.02;
 			for(let j=0; j<result.length; j+=VALUES_PER_ELEMENT) {
 				//let color = ((j+1) / result.length * 255)|0;
 				//this.preview_ctxs[i].strokeStyle = `rgb(${color}, ${color}, ${color})`;
@@ -162,15 +163,9 @@ export default class Reconstructor extends React.Component<any, ReconstructorSta
 				this.preview_ctxs[i].closePath();
 				this.preview_ctxs[i].fill();
 
-				/*this.preview_ctxs[i].lineWidth = INPUT_H * Math.abs(result[j+2])*0.05;
-				this.preview_ctxs[i].beginPath();
+				/*this.preview_ctxs[i].beginPath();
 				this.preview_ctxs[i].moveTo(result[j+0]*INPUT_W, result[j+1]*INPUT_H);
-				this.preview_ctxs[i].lineTo(
-					( Math.abs(result[j+0]) + 
-						result[j+3] * Math.cos(result[j+4]*Math.PI*2.0) )*INPUT_W,
-					( Math.abs(result[j+1]) + 
-						result[j+3] * Math.sin(result[j+4]*Math.PI*2.0) )*INPUT_H
-				);
+				this.preview_ctxs[i].lineTo(result[j+2]*INPUT_W, result[j+3]*INPUT_H);
 				this.preview_ctxs[i].stroke();*/
 
 				/*this.preview_ctxs[i].beginPath();
