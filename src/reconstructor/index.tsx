@@ -11,7 +11,7 @@ const POPULATION = 50;
 
 // let CH = 3;//number of channels
 const ELEMENTS = 200;
-const VALUES_PER_ELEMENT = 9;
+const VALUES_PER_ELEMENT = 10;
 
 interface ReconstructorState {
 	training: boolean;
@@ -30,7 +30,7 @@ export default class Reconstructor extends React.Component<any, ReconstructorSta
 		}, {
 			//deprecated - posiition (x, y), size(w, h) and rotation of each line
 
-			//x1, y1, x2, y2, x3, y3, r, g, b
+			//x1, y1, x2, y2, x3, y3, r, g, b a
 			length: ELEMENTS * VALUES_PER_ELEMENT//INPUT_W*INPUT_H*CH
 		});
 
@@ -45,6 +45,10 @@ export default class Reconstructor extends React.Component<any, ReconstructorSta
 
 	constructor(props: any) {
 		super(props);
+	}
+
+	componentWillUnmount() {
+		this.training_id++;
 	}
 
 	onLoad() {
@@ -153,7 +157,7 @@ export default class Reconstructor extends React.Component<any, ReconstructorSta
 				//let color = ((j+1) / result.length * 255)|0;
 				//this.preview_ctxs[i].strokeStyle = `rgb(${color}, ${color}, ${color})`;
 				this.preview_ctxs[i].fillStyle = 
-					`rgba(${result[j+6]*255},${result[j+7]*255},${result[j+8]*255}, 1)`;
+					`rgba(${result[j+6]*255},${result[j+7]*255},${result[j+8]*255}, ${result[j+9]})`;
 				//this.preview_ctxs[i].fillStyle = '#000';
 
 				this.preview_ctxs[i].beginPath();
