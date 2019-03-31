@@ -98,15 +98,35 @@ export default class Individual {
 		}
 	}
 
-	private static crossoverArray(target: Float32Array, src1: Float32Array, src2: Float32Array) {
-		let split = (target.length * Math.random())|0;
+	private static crossoverArray(target: Float32Array, 
+		parent1: Float32Array, parent2: Float32Array, splits: number) 
+	{
+		let split_points: number[] = [];
+		for(let i=0; i<splits; i++)
+			split_points.push( (target.length * Math.random())|0 );
+		split_points = split_points.sort((a, b) => a-b)
+			.filter((v, i, arr) => arr.indexOf(v, i+1) === -1);
+		
+		let parents_dna = [parent1, parent2];
+		let start = 0;
+		for(var j=0; j<split_points.length; j++) {
+			//console.log(start, split_points[j], j%2);
+			for(let i=start; i<split_points[j]; i++)
+				target[i] = parents_dna[j%2][i];
+			start = split_points[j];
+		}
+		//console.log(start, target.length, j%2);
+		for(let i=start; i<target.length; i++)
+			target[i] = parents_dna[j%2][i];
+		
+		/*let split = (target.length * Math.random())|0;
 		for(let i=0; i<split; i++)
 			target[i] = src1[i];
 		for(let i=split; i<target.length; i++)
-			target[i] = src2[i];
+			target[i] = src2[i];*/
 	}
 
-	public static crossover(A: Individual, B: Individual, flip_chance: number) {
+	public static crossover(A: Individual, B: Individual, flip_chance: number, splits: number) {
 		if(A.type !== B.type)
 			throw new Error('Incopatible structures');
 
@@ -128,7 +148,7 @@ export default class Individual {
 					w1 = w2;
 					w2 = swap;
 				}
-				Individual.crossoverArray(weights[l], w1[l], w2[l]);
+				Individual.crossoverArray(weights[l], w1[l], w2[l], splits);
 			}
 		}
 		else if(A.type === StructureType.Buffer1D) {
@@ -143,7 +163,7 @@ export default class Individual {
 
 			let chV = (<Buffer1D>child.brain).getValues();
 
-			Individual.crossoverArray(chV, v1, v2);
+			Individual.crossoverArray(chV, v1, v2, splits);
 		}
 
 		child.parent_fitnesses = [A.fitness, B.fitness];

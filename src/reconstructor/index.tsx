@@ -26,7 +26,8 @@ export default class Reconstructor extends React.Component<any, ReconstructorSta
 			mutation_chance: 0.01,
 			mutation_scale: 0.1,
 			dna_twist_chance: 0.5,
-			elitism: 1
+			dna_splits: 20,
+			elitism: 0
 		}, {
 			//deprecated - posiition (x, y), size(w, h) and rotation of each line
 
@@ -176,15 +177,20 @@ export default class Reconstructor extends React.Component<any, ReconstructorSta
 				this.preview_ctxs[i].arc(result[j+0]*INPUT_W, result[j+1]*INPUT_H, 
 					Math.abs(result[j+2])*INPUT_H*0.1, 0, Math.PI*2, false);
 				this.preview_ctxs[i].fill();*/
-
-
 			}
 
 			//calculate score
 			let preview_data = this.preview_ctxs[i].getImageData(0, 0, INPUT_W, INPUT_H);
 			for(let j=0; j<this.source_data.length/3; j++) {
-				for(let c=0; c<3; c++)
-					score += 1.0 - Math.abs(this.source_data[j*3+c] - preview_data.data[j*4+c]/255);
+				//for(let c=0; c<3; c++)
+				//	score += 1.0 - Math.abs(this.source_data[j*3+c] - preview_data.data[j*4+c]/255);
+				
+				//new scoring algorithm: Delta-E
+				let sum = 0;
+				for(let c=0; c<3; c++) {
+					sum += Math.pow(this.source_data[j*3+c] - preview_data.data[j*4+c]/255, 2);
+				}
+				score += 1.0 - Math.sqrt(sum);
 			}
 
 
@@ -193,8 +199,11 @@ export default class Reconstructor extends React.Component<any, ReconstructorSta
 			individuals[i].setScore( score );
 		}
 
+		let max_score = this.source_data.length/3;
+
 		this.ga.evolve();
-		console.log('generation:', this.ga.generation, 'best score:', this.ga.best_score);
+		console.log('generation:', this.ga.generation, 'best score:', this.ga.best_score|0,
+			((this.ga.best_score / max_score*100)|0) + '%');
 	}
 
 	render() {

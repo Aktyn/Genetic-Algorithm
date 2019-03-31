@@ -7,8 +7,9 @@ import {BufferParams} from './buffer1d';
 interface ParamsBase {
 	mutation_chance: number;
 	mutation_scale: number;
-	elitism: number;
+	dna_splits: number;
 	dna_twist_chance: number;
+	elitism: number;
 }
 
 export default class GA {
@@ -25,8 +26,9 @@ export default class GA {
 		this.params = {
 			mutation_chance: params.mutation_chance || 0.1, 
 			mutation_scale: params.mutation_scale || 0.5,
-			elitism: params.elitism || 2,
-			dna_twist_chance: params.dna_twist_chance || 0.5
+			dna_splits: params.dna_splits || 1,
+			dna_twist_chance: params.dna_twist_chance || 0.5,
+			elitism: params.elitism || 2
 		};
 
 		this.individuals = [];
@@ -99,7 +101,7 @@ export default class GA {
         //breeding new generation
         for (let i=this.params.elitism; i<this.individuals.length; i++) {
            	let child = Individual.crossover(this.selection(), this.selection(), 
-           		this.params.dna_twist_chance);
+           		this.params.dna_twist_chance, this.params.dna_splits);
             child.mutate(this.params.mutation_chance, this.params.mutation_scale);
            
           	new_generation.push(child);

@@ -100,7 +100,10 @@ export default class extends React.Component<any, DinoState> {
 		this.user_player = null;
 		this.ai_player = null;
 		if(this.ga === null) {
-			this.ga = new GA(POPULATION, {}, {
+			this.ga = new GA(POPULATION, {
+				dna_splits: 2,
+				dna_twist_chance: 0.5
+			}, {
 				inputs: 4, 
 				hidden_layers: [16, 8], 
 				outputs: 2,
