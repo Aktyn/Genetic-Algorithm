@@ -87,6 +87,7 @@ export default class Individual {
 		}
 	}
 
+	//IMPORTANT TODO - move mutate and crossover methods to each brain classes (Network and Buffer1D)
 	public mutate(mutation_chance: number, mutation_scale: number) {
 		if(this.type === StructureType.Network) {
 			for(let weights of (<Network>this.brain).getWeights())
