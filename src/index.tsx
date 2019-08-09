@@ -6,13 +6,13 @@ import './styles/main.scss';
 
 import Menu from './menu';
 import Dinosaur from './dinosaur';
-import Reconstructor from './reconstructor';
+import Reconstruction from './reconstruction';
 
 render(
     <BrowserRouter>
 		<Switch>
 			<Route path="/dino" exact component={Dinosaur} />
-			<Route path="/reconstructor" exact component={Reconstructor} />
+			<Route path="/reconstruction" exact component={Reconstruction} />
     		<Route path="*" exact component={Menu} />
 		</Switch>
   	</BrowserRouter>,

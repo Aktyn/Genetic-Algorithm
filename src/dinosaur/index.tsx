@@ -31,7 +31,7 @@ export default class extends React.Component<any, DinoState> {
 
 	state: DinoState = {
 		generation: 0
-	}
+	};
 
 	constructor(props: any) {
 		super(props);
@@ -176,8 +176,7 @@ export default class extends React.Component<any, DinoState> {
 				this.ga.evolve();
 				this.best_individual = this.ga.getBest().clone();
 
-				console.log('evolving generation:', this.ga.generation, 
-					'best score:', this.ga.best_score);
+				console.log(`evolving generation: ${this.ga.generation}, best score: ${this.ga.best_score}`);
 				this.setState({generation: this.ga.generation});
 
 				this.game.start(POPULATION);
@@ -252,7 +251,7 @@ export default class extends React.Component<any, DinoState> {
 			</nav>
 			<div>Generation: {this.state.generation}</div>
 			<div>
-				<canvas ref={this.loadCanvas.bind(this)}></canvas>
+				<canvas ref={this.loadCanvas.bind(this)}/>
 			</div>
 		</div>;
 	}

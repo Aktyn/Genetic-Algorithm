@@ -1,4 +1,4 @@
-const webpack = require('webpack');
+//const webpack = require('webpack');
 const path = require('path');
 const autoprefixer = require('autoprefixer');
 
@@ -27,7 +27,9 @@ module.exports = {
 	resolve: {
 		extensions: ['.js', '.json', '.ts', '.tsx'],
 	},
-
+	node: {
+		fs: "empty"
+	},
 	optimization: isDevelopment ? undefined : {
 		minimize: true,
 		minimizer: [
@@ -45,7 +47,7 @@ module.exports = {
 		splitChunks: {
 			//chunks: 'all',
 			automaticNameDelimiter: '-',
-
+			
 			cacheGroups: {
 				styles: {
 					name: 'styles',
@@ -59,18 +61,13 @@ module.exports = {
 			}
 		}
 	},
-
+	
 	module: {
 		rules: [
 			{
-				test: /\.(ts|tsx)$/,
-				loader: 'awesome-typescript-loader',
-			},
-			{ 
-				test: /\.handlebars$/, 
-				loader: "handlebars-loader" 
-			},
-			{
+				test: /^(?!\.\/node_modules).*([^.].\.tsx?)$/,
+				loader: 'awesome-typescript-loader'
+			}, {
 				test: /\.(scss|css)$/,
 				use: [
 					MiniCssExtractPlugin.loader,
@@ -100,14 +97,13 @@ module.exports = {
 						}
 					}
 				]
-			},
-			{
+			}, {
 				test: /\.(jpe?g|png|gif|svg|ttf)$/,
 				use: [
 					{
 						loader: "file-loader",
 						options: {
-							attrs: ['img:src','link:href','image:xlink:href'],
+							attrs: ['img:src', 'link:href', 'image:xlink:href'],
 							name: '[name].[ext]',
 							outputPath: 'static/',
 							useRelativePath: true,
@@ -136,10 +132,32 @@ module.exports = {
 						}
 					}
 				]
+			}, {
+				test: /\.(txt)$/i,
+				use: 'raw-loader',
+			}, /*{
+				test: /\.wasm$/,
+				//use: 'file-loader'
+				type: 'javascript/auto',
+				loaders: ['arraybuffer-loader']
+			},*/{
+				test: /\.wasm$/,
+				use: [
+					{
+						loader: "file-loader",
+						options: {
+							name: '[name].[ext]',
+							//outputPath: '/',
+							useRelativePath: false,
+						}
+					}
+				],
+				type: 'javascript/auto',
+				// loaders: ['arraybuffer-loader']
 			},
 		],
 	},
-
+	
 	plugins: [
 		/*new webpack.DefinePlugin({
 			_GLOBALS_: JSON.stringify({
@@ -157,7 +175,7 @@ module.exports = {
 			minify: !isDevelopment,
 			template: './src/index.html',
 			filename: './index.html',
-
+			
 			//inject: 'head',
 		})
 	]
