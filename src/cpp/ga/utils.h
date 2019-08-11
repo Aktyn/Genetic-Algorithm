@@ -8,6 +8,9 @@
 
 #include "types.h"
 
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+
 namespace Utils {
 
 	inline void initRandom() {
@@ -16,6 +19,18 @@ namespace Utils {
 
 	inline float randFloat() {//return float value between 0 and 1
 		return rand() / static_cast<float>( RAND_MAX );
+	}
+
+	inline uint32 randomInt32(uint32 _min, uint32 _max) {
+		return _min + (rand() % (_max-_min+1));
+	}
+
+	inline float clampFloat(float val, float min, float max) {
+		if(val > max)
+			return max;
+		if(val < min)
+			return min;
+		return val;
 	}
 
 	//NOTE: each buffer must have same size
@@ -51,10 +66,15 @@ namespace Utils {
 			target[i] = parents_dna[ (j+shift)%2 ][i];
 	}
 
-	static void mutateBuffer(float* buff, uint32 buffer_size, float mutation_chance, float mutation_scale) {
+	static void mutateBuffer(float* buff, uint32 buffer_size, float mutation_chance, float mutation_scale,
+		bool clamp = true)
+	{
 		for(uint32 i=0; i<buffer_size; i++) {
-			if( Utils::randFloat() < mutation_chance )
+			if( Utils::randFloat() < mutation_chance ) {
 				buff[i] += Utils::randFloat() * (Utils::randFloat()*2.f - 1.f) * mutation_scale;
+				if( clamp )
+					buff[i] = clampFloat(buff[i], 0, 1);
+			}
 		}
 	}
 }

@@ -35,7 +35,7 @@ BufferIndividual& BufferIndividual::operator=(const BufferIndividual& individual
 	return *this;
 }
 
-BufferIndividual* BufferIndividual::clone_ptr() const {//NOTE that returns pointer that must be deleted
+BufferIndividual* BufferIndividual::clone_ptr() const {//NOTE this returns pointer that must be deleted
 	BufferIndividual* clone = new BufferIndividual( this->size, this->array_buff );
 	Individual::copyToClone(clone);
 

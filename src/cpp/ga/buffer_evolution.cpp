@@ -43,63 +43,11 @@ void BufferEvolution::mutate(Individual& child) const {
 	Utils::mutateBuffer(buffer, buffer_size, params.mutation_chance, params.mutation_scale);
 }
 
-void BufferEvolution::initPopulation(uint32 _population, uint32 _buffer_size) {
+void BufferEvolution::initPopulation(uint32 population, uint32 _buffer_size) {
 	this->buffer_size = _buffer_size;//must be assigned before initializing population
-	GA::initPopulation(_population);
+	GA::initPopulation(population);
 }
-
-/*BufferIndividual** BufferEvolution::getIndividuals() const {
-	return (BufferIndividual**)individuals;
-}*/
 
 BufferIndividual* BufferEvolution::getIndividual(uint32 index) const {
 	return (BufferIndividual*)individuals[index];
 }
-
-#ifdef __EMSCRIPTEN__
-	#include "emscripten/bind.h"
-	using namespace emscripten;
-
-	EMSCRIPTEN_BINDINGS (c) {
-		class_<Individual>("Individual")
-			.constructor<>()
-	        .function("setScore", &Individual::setScore);
-
-		class_<BufferIndividual, emscripten::base<Individual>>("BufferIndividual")
-			.constructor<uint32>()
-			//.function("getBuffer", &BufferIndividual::getBuffer, allow_raw_pointers())
-			.function("getBufferAddress", &BufferIndividual::getBufferAddress)
-	        .function("getMemoryUsed", &BufferIndividual::getMemoryUsed);//pure_virtual()
-
-		class_<GA>("GA")
-	        .function("evolve", &GA::evolve)
-	        .function("getGeneration", &GA::getGeneration)
-	        .function("getBestScore", &GA::getBestScore);
-
-		class_<BufferEvolution, emscripten::base<GA>>("BufferEvolution")
-			.constructor<>()
-			.constructor<float>()
-			.constructor<float, float>()
-			.constructor<float, float, uint32>()
-			.constructor<float, float, uint32, float>()
-	        .constructor<float, float, uint32, float, uint32>()
-	        .function("initPopulation", &BufferEvolution::initPopulation)
-	        //.function("getIndividuals", &BufferEvolution::getIndividuals, allow_raw_pointers())
-	        .function("getIndividual", &BufferEvolution::getIndividual, allow_raw_pointers());
-	}
-
-#endif
-
-
-#ifndef __EMSCRIPTEN__
-	//run tests (TODO: move to separate .cpp file)
-	int main() {
-		BufferEvolution evolution = BufferEvolution();
-
-		evolution.initPopulation(50, 100);
-		evolution.evolve();
-
-		printf("Tests finished\n");
-		return 0;
-	}
-#endif

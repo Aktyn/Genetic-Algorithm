@@ -1,10 +1,12 @@
 import * as React from 'react';
-// import GA from './../GA/ga';
 const Module = require('../../wasm_out/ga.js')();
 console.log(Module);
 
-// const example_img = require('./../img/test.png');
-const example_img = require('./../img/psyduck.jpg');
+const example_images = [
+	require('./../img/test.png'),
+	require('./../img/test2.png'),
+	require('./../img/psyduck.jpg'),
+];
 
 let module_loaded = false;
 let onModuleLoaded: (() => void) | null = null;
@@ -22,7 +24,6 @@ Module.addOnPostRun(() => {
 
 interface BufferIndividualSchema {
 	getMemoryUsed(): number;
-	//getBuffer(): number[];
 	getBufferAddress(): number;
 	setScore(score: number): void;
 }
@@ -32,43 +33,33 @@ interface EvolutionSchema {
 	getIndividual(index: number): BufferIndividualSchema;
 	getGeneration(): number;
 	getBestScore(): number;
-	evolve(): void;
+	evolve(tournament_size: number, selection_probability: number): void;
 	
 	delete(): void;
 }
 
-const INPUT_W = 200;//96*4;//200
-const INPUT_H = 200;//54*4;//200
+const INPUT_W = 100;//200
+const INPUT_H = 100;//200
 
-const POPULATION = 10;
+const POPULATION = 200;
+const TOURNAMENT_SIZE = 10;
+const SELECTION_PROBABILITY = 0.75;
 
-// let CH = 3;//number of channels
-const ELEMENTS = 800;
-const VALUES_PER_ELEMENT = 7;
+const ELEMENTS = 1000;
+const VALUES_PER_ELEMENT = 4;//x, y, is_visible
 
 const BUFFER_SIZE = ELEMENTS * VALUES_PER_ELEMENT;
 
 interface ReconstructionState {
 	training: boolean;
+	selected_src_index: number;
 }
 
 export default class Reconstruction extends React.Component<any, ReconstructionState> {
-	private source_img: HTMLImageElement | null = null;
+	private source_images: (HTMLImageElement | null)[] = new Array(example_images.length).fill(null);
 	private source_formatted: HTMLCanvasElement | null = null;
 	private preview_container: HTMLDivElement | null = null;
-
-	/*private ga = new GA(POPULATION, {
-			mutation_chance: 0.005,
-			mutation_scale: 0.1,
-			dna_twist_chance: 0.5,
-			dna_splits: ELEMENTS,//20
-			elitism: 0
-		}, {
-			//deprecated - position (x, y), size(w, h) and rotation of each line
-
-			//x1, y1, x2, y2, x3, y3, r, g, b a
-			length: ELEMENTS * VALUES_PER_ELEMENT//INPUT_W*INPUT_H*CH
-		});*/
+	
 	private evolution: EvolutionSchema | null = null;
 
 	private source_data: Float32Array | null = null;//greyscale values
@@ -77,7 +68,8 @@ export default class Reconstruction extends React.Component<any, ReconstructionS
 	private training_id = 0;
 
 	state: ReconstructionState = {
-		training: false
+		training: false,
+		selected_src_index: 0
 	};
 
 	constructor(props: any) {
@@ -89,23 +81,17 @@ export default class Reconstruction extends React.Component<any, ReconstructionS
 		if(this.evolution)
 			this.evolution.delete();
 	}
+	
+	private selectImage(index: number) {
+		this.state.selected_src_index = index;
+		this.onLoad().catch(console.error);
+		this.setState({selected_src_index: index});
+	}
 
 	async onLoad() {
-		if(!this.source_img || !this.source_formatted || !this.preview_container)
-			throw new Error('Component is not loaded properly');
-
-		this.source_formatted.width = INPUT_W;
-		this.source_formatted.height = INPUT_H;
-
-		let ctx = this.source_formatted.getContext('2d', {
-			antialias: true
-		}) as CanvasRenderingContext2D;
-
-		ctx.drawImage(this.source_img, 0, 0, INPUT_W, INPUT_H);
-
-		//temp for testing
-		//ctx.fillStyle = '#333';
-		//ctx.fillRect(0, 0, INPUT_W, INPUT_H);
+		let source_img = this.source_images[this.state.selected_src_index];
+		if(!source_img || !this.source_formatted || !this.preview_container)
+			throw new Error("Components are not loaded yet");
 		
 		this.preview_container.innerText = '';
 		this.preview_ctxs = [];
@@ -123,45 +109,52 @@ export default class Reconstruction extends React.Component<any, ReconstructionS
 			preview_ctx.fillRect(0, 0, INPUT_W, INPUT_H);
 			this.preview_ctxs.push( preview_ctx );
 		}
+		
+		this.source_formatted.width = INPUT_W;
+		this.source_formatted.height = INPUT_H;
+		let ctx = this.source_formatted.getContext('2d', {
+			antialias: true
+		}) as CanvasRenderingContext2D;
+
+		ctx.drawImage(source_img, 0, 0, INPUT_W, INPUT_H);
 
 		let data = ctx.getImageData(0, 0, INPUT_W, INPUT_H);
-		let data32 = new Float32Array(data.data.length / 4 * 3);
+		this.source_data = new Float32Array(data.data.length / 4/* * 3*/);
 		//convert to float32 RGB
 		for(let i=0; i<data.data.length/4; i++) {
-			//0.21 R + 0.72 G + 0.07 B.
-			//data32[i] = 0.21*data.data[i*4+0]/255 + 
-			//	0.72*data.data[i*4+1]/255 + 
-			//	0.07*data.data[i*4+2]/255;
-			//(max(R, G, B) + min(R, G, B)) / 2.
-			//let rgb = [data.data[i*4+0], data.data[i*4+1], data.data[i*4+2]];
-			//data32[i] = (Math.max(...rgb) + Math.min(...rgb)) / 2 / 255;
-
-			//data32[i] = Math.pow(data32[i]+0.35, 8)-0.35;
-
-			for(let c=0; c<3; c++)
-			//	data.data[i*4+c] = data32[i]*255;
-				data32[i*3+c] = data.data[i*4+c]/255;
+			//for(let c=0; c<3; c++)
+			//	data32[i*3+c] = data.data[i*4+c]/255;
+			
+			//grayscale
+			let cLinear = 0.2126 * (data.data[i*4]/255) +
+				0.7152 * (data.data[i*4+1]/255) +
+				0.0722 * (data.data[i*4+2]/255);
+			
+			if(cLinear <= 0.0031308)
+				this.source_data[i] = 12.92 * cLinear;
+			else
+				this.source_data[i] = 1.055 * cLinear - 0.055;
+			data.data[i*4] = data.data[i*4+1] = data.data[i*4+2] = (this.source_data[i]*256)|0;
+			//this.source_data[i] = data.data[i*4] / 255;//red channel
 		}
 		ctx.putImageData(data, 0, 0);
-
-		this.source_data = data32;
-
+		
+		if( this.evolution )//already initialized
+			return;
+		
 		await onPostRun();
 		
 		const params = {
-			mutation_chance: 0.005,
-			mutation_scale: 0.2,
-			dna_twist_chance: 0.1,
-			dna_splits: (ELEMENTS/8)|0,//20
-			elitism: 1
+			mutation_chance: 1 / ELEMENTS,//0.001,
+			mutation_scale: 0.9,
+			dna_twist_chance: 0.5,
+			dna_splits: 20,//ELEMENTS,
+			elitism: 0
 		};
 		this.evolution = new Module.BufferEvolution(params.mutation_chance, params.mutation_scale, params.dna_splits,
 			params.dna_twist_chance, params.elitism) as EvolutionSchema;
 		this.evolution.initPopulation(POPULATION, BUFFER_SIZE);
 		
-		//let ptr = this.evolution.getIndividual(0).getBufferAddress();
-		// console.log( Module.HEAPF32[ptr/4+2] );
-		//console.log( Module.HEAPF32.subarray(ptr/4, ptr/4+5) );
 		this.switchTraining();
 	}
 
@@ -170,10 +163,7 @@ export default class Reconstruction extends React.Component<any, ReconstructionS
 		if(!this.evolution)
 			throw new Error("evolution is not initialized");
 		let k_bytes = 0;
-
-		//let individuals = this.evolution.getIndividuals();
-		//for(let i of individuals)
-		//	bytes += i.getMemoryUsed();
+		
 		for(let i=0; i<POPULATION; i++)
 			k_bytes += this.evolution.getIndividual(i).getMemoryUsed();
 
@@ -208,9 +198,12 @@ export default class Reconstruction extends React.Component<any, ReconstructionS
 
 		//let individuals = this.evolution.getIndividuals();
 		
-		const block_size = (INPUT_W + INPUT_H) / Math.sqrt(ELEMENTS);
+		const square_size = (INPUT_W + INPUT_H) / Math.sqrt(ELEMENTS) / 2;
 
+		const step = Math.max(1, square_size|0);
+		const offset = ((Math.random() * this.source_data.length)|0) % step;
 		//for(let i=0; i<individuals.length; i++) {
+		// console.time('simulating');
 		for(let i=0; i<POPULATION; i++) {
 			let score = 0;
 			let individual = this.evolution.getIndividual(i);
@@ -218,66 +211,52 @@ export default class Reconstruction extends React.Component<any, ReconstructionS
 			//get predicted result
 			let result_heap_index = (individual.getBufferAddress() / 4) | 0;
 			let result = Module.HEAPF32;//.subarray(result_ptr/4, result_ptr/4 + BUFFER_SIZE);
-			//old - x, y, w, h, rot...
-			//x1, y1, x2, y2, x3, y3, r, g, b
+			
 			this.preview_ctxs[i].fillStyle = '#fff';
 			this.preview_ctxs[i].fillRect(0, 0, INPUT_W, INPUT_H);
+			// this.preview_ctxs[i].fillStyle = '#000';
 			
-			//this.preview_ctxs[i].lineWidth = INPUT_H*0.02;
 			for(let j=result_heap_index; j<result_heap_index+BUFFER_SIZE; j+=VALUES_PER_ELEMENT) {
-				//let color = ((j+1) / result.length * 255)|0;
-				//this.preview_ctxs[i].strokeStyle = `rgb(${color}, ${color}, ${color})`;
-				this.preview_ctxs[i].fillStyle = 
-					`rgba(${result[j+3]*255}, ${result[j+4]*255}, ${result[j+5]*255}, ${result[j+6]})`;
-				//this.preview_ctxs[i].fillStyle = '#000';
-
-				/*this.preview_ctxs[i].beginPath();
-				this.preview_ctxs[i].moveTo(result[j]*INPUT_W, result[j+1]*INPUT_H);
-				this.preview_ctxs[i].lineTo(result[j+2]*INPUT_W, result[j+3]*INPUT_H);
-				this.preview_ctxs[i].lineTo(result[j+4]*INPUT_W, result[j+5]*INPUT_H);
-				this.preview_ctxs[i].closePath();
-				this.preview_ctxs[i].fill();*/
+				this.preview_ctxs[i].fillStyle = `rgba(0, 0, 0, ${result[j+2]})`;
+				let s = result[j+3] * square_size * 2;
 				this.preview_ctxs[i].fillRect(
-					result[j]*INPUT_W, result[j+1]*INPUT_H,
-					result[j+2]*block_size, result[j+2]*block_size
+					result[j] * INPUT_W - s/2.0,
+					result[j+1] * INPUT_H - s/2.0,
+					s, s
 				);
-				
-
-				/*this.preview_ctxs[i].beginPath();
-				this.preview_ctxs[i].moveTo(result[j+0]*INPUT_W, result[j+1]*INPUT_H);
-				this.preview_ctxs[i].lineTo(result[j+2]*INPUT_W, result[j+3]*INPUT_H);
-				this.preview_ctxs[i].stroke();*/
-
-				/*this.preview_ctxs[i].beginPath();
-				this.preview_ctxs[i].arc(result[j+0]*INPUT_W, result[j+1]*INPUT_H, 
-					Math.abs(result[j+2])*INPUT_H*0.1, 0, Math.PI*2, false);
-				this.preview_ctxs[i].fill();*/
+				/*if(result[j+2] > 0.5) {
+					this.preview_ctxs[i].fillRect(
+						result[j] * INPUT_W - square_size/2.0,
+						result[j+1] * INPUT_H - square_size/2.0,
+						square_size, square_size);
+				}*/
 			}
 
 			//calculate score
 			let preview_data = this.preview_ctxs[i].getImageData(0, 0, INPUT_W, INPUT_H);
-			for(let j=0; j<this.source_data.length/3; j++) {
-				//for(let c=0; c<3; c++)
-				//	score += 1.0 - Math.abs(this.source_data[j*3+c] - preview_data.data[j*4+c]/255);
-				
+			
+			for(let j=offset; j<this.source_data.length; j+=step) {
 				//new scoring algorithm: Delta-E
-				let sum = 0;
+				/*let sum = 0;
 				for(let c=0; c<3; c++) {
 					sum += Math.pow(this.source_data[j*3+c] - preview_data.data[j*4+c]/255, 2);
+					//sum += Math.abs(this.source_data[j*3+c] - preview_data.data[j*4+c]/255);
 				}
-				score += 1.0 - Math.sqrt(sum);
+				score += 1.0 - Math.sqrt(sum);*/
+				//score += Math.round(preview_data.data[j*4]/255) === Math.round(this.source_data[j]) ? 1 : 0;
+				score += 1.0 - Math.abs(preview_data.data[j*4]/255 - this.source_data[j]);
 			}
-
-
+			
 			//this.preview_ctxs[i].putImageData(preview_data, 0, 0);
 
 			individual.setScore( score );
 		}
+		// console.timeEnd('simulating');
 
-		let max_score = this.source_data.length/3;
+		let max_score = (this.source_data.length/step)|0;///3;
 
 		//console.time('evolving');
-		this.evolution.evolve();
+		this.evolution.evolve(TOURNAMENT_SIZE, SELECTION_PROBABILITY);
 		//console.timeEnd('evolving');
 		console.log(`generation: ${this.evolution.getGeneration()}, best score: ${this.evolution.getBestScore()|0}, ${
 			((this.evolution.getBestScore() / max_score*100)|0)}%`);
@@ -285,12 +264,18 @@ export default class Reconstruction extends React.Component<any, ReconstructionS
 
 	render() {
 		return <div>
-			<div style={{height: '300px'}}>
-				<img ref={el=>this.source_img=el} src={example_img} alt={'source img'}
-					style={{maxHeight: '100%', maxWidth: '100%'}} onLoad={() => {
-						this.onLoad().catch(console.error);
-					}} />
-			</div>
+			<div style={{height: '300px'}}>{
+				example_images.map((img_src, index) => {
+					return <img key={index} ref={el => this.source_images[index] = el} src={img_src}
+						style={{
+							maxHeight: '100%', maxWidth: '100%',
+							border: this.state.selected_src_index === index ? '1px solid #f55' : 'none'
+						}} onLoad={() => {
+							if(index === this.state.selected_src_index)
+								this.onLoad().catch(console.error);
+						}} onClick={() => this.selectImage(index)} alt={'source img'} />;
+				})
+			}</div>
 			<div style={{padding: '10px 0px'}}><button onClick={this.switchTraining.bind(this)}>
 				{this.state.training ? 'STOP TRAINING' : 'START TRAINING'}
 			</button></div>

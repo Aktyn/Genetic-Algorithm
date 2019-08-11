@@ -3,8 +3,9 @@
 #include <stdio.h>
 #include <float.h>//DBL_MAX
 #include <algorithm>
+#include <math.h>
 
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
+//#define MAX(a, b) ((a) > (b) ? (a) : (b))//moved to utils.h
 #define FOR_EACH_INDIVIDUAL for(uint32 i=0; i<population; i++)
 
 GA::GA(
@@ -20,6 +21,10 @@ GA::GA(
 }
 
 GA::~GA() {
+	deletePopulation();
+}
+
+void GA::deletePopulation() {
 	if( individuals != nullptr ) {
 		FOR_EACH_INDIVIDUAL {
 			if( individuals[i] )
@@ -40,25 +45,46 @@ float GA::getBestScore() const {
 void GA::initPopulation(uint32 _population) {
 	this->population = _population;
 
+	deletePopulation();//delete old
 	this->individuals = new Individual*[population];
 	FOR_EACH_INDIVIDUAL {
 		this->individuals[i] = this->createIndividual();
 	}
 }
 
-Individual* GA::selection() const {
-	uint32 index = 0;
-    float r = Utils::randFloat();
-    while(r > 0 && index < population) {
-        r -= individuals[index]->total_fitness_norm;
-		index++;
-	}
+//Individual* GA::selection() const {
+//	uint32 index = 0;
+//    float r = Utils::randFloat();
+//    while(r > 0 && index < population) {
+//        r -= individuals[index]->total_fitness_norm;
+//		index++;
+//	}
+//
+//	index--;
+//	return individuals[index];
+//}
 
-	index--;
-	return individuals[index];
+Individual* GA::tournament_selection(uint32 tournament_size, float selection_probability) const {
+	Individual* selected[tournament_size];
+	for(uint32 i=0; i<tournament_size; i++)
+		selected[i] = individuals[ Utils::randomInt32(0, population-1) ];
+
+	std::sort(&selected[0], &selected[tournament_size], [](const Individual* a, const Individual* b) -> bool
+	{//DESC
+	    return a->total_fitness_norm > b->total_fitness_norm;
+	});
+
+	float prob = Utils::randFloat();
+	float p = selection_probability;//initial probability
+	for(uint32 i=0; i<tournament_size; i++) {
+		if( prob < selection_probability )
+			return selected[i];
+		selection_probability += p * powf(1.f - p, i+1);
+	}
+	return selected[tournament_size-1];//return worst one from selected individuals
 }
 
-void GA::evolve() {
+void GA::evolve(uint32 tournament_size, float selection_probability) {
 	if( individuals == nullptr )
 		throw "No population initialized";
 	this->generation++;
@@ -83,14 +109,13 @@ void GA::evolve() {
 	}
 
 	std::sort(&individuals[0], &individuals[population], [](const Individual* a, const Individual* b) -> bool
-	{
+	{//DESC
 	    return a->total_fitness_norm > b->total_fitness_norm;
 	});
 
 	//TEMP: test of sorting (DESC)
 	//FOR_EACH_INDIVIDUAL
 	//	printf("sorting test: %d => %f\n", i, individuals[i]->total_fitness_norm);
-
 
 	//TODO: store two arrays of individuals and swap them each epoch instead of reallocating memory every time
 	Individual** new_generation = new Individual*[population];
@@ -101,7 +126,10 @@ void GA::evolve() {
 
     //breeding new generation
     for(uint32 i=params.elitism; i<population; i++) {
-        Individual* child = this->crossover( *this->selection(), *this->selection() );
+        Individual* child = this->crossover(
+            *this->tournament_selection(tournament_size, selection_probability),
+            *this->tournament_selection(tournament_size, selection_probability)
+        );
 		this->mutate( *child );
         new_generation[i] = child;
     }

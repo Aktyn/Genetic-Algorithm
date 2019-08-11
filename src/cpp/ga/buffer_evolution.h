@@ -4,12 +4,6 @@
 #include "ga.h"
 #include "buffer_individual.h"
 
-#define DEFAULT_MUTATION_CHANCE 0.1f
-#define DEFAULT_MUTATION_SCALE 0.5f
-#define DEFAULT_DNA_SPLITS 20//2
-#define DEFAULT_DNA_TWIST_CHANCE 0.5f
-#define DEFAULT_ELITISM 1
-
 class BufferEvolution final : public GA {
 	private:
 		uint32 buffer_size;
@@ -28,7 +22,7 @@ class BufferEvolution final : public GA {
 		~BufferEvolution();
 
 		void initPopulation(uint32 population_size, uint32 buffer_size);
-		//BufferIndividual** getIndividuals() const; //not supported
+
 		BufferIndividual* getIndividual(uint32 index) const;
 };
 

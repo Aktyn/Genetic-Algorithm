@@ -3,6 +3,13 @@
 
 #include "individual.h"
 
+//defines used in child classes
+#define DEFAULT_MUTATION_CHANCE 0.1f
+#define DEFAULT_MUTATION_SCALE 0.5f
+#define DEFAULT_DNA_SPLITS 20//2
+#define DEFAULT_DNA_TWIST_CHANCE 0.5f
+#define DEFAULT_ELITISM 1
+
 class GA {
 	private:
 		struct Params {
@@ -16,7 +23,10 @@ class GA {
 		uint32 generation, population;
 		float best_score;
 
-		Individual* selection() const;
+//		Individual* selection() const;
+		Individual* tournament_selection(uint32 tournament_size, float selection_probability) const;
+
+		void deletePopulation();
 	protected:
 		Params params;
 		Individual** individuals;//array of pointers
@@ -29,7 +39,7 @@ class GA {
 		virtual ~GA();
 
 		virtual void initPopulation(uint32 population_size);
-		void evolve();
+		void evolve(uint32 tournament_size, float selection_probability);
 
 		uint32 getGeneration() const;
 		float getBestScore() const;
