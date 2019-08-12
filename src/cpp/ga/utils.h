@@ -1,6 +1,7 @@
 #ifndef GA_UTILS_H
 #define GA_UTILS_H
 
+//#include <vector>
 #include <stdio.h>
 #include <stdlib.h>//srand, rand
 #include <time.h>
@@ -22,7 +23,11 @@ namespace Utils {
 	}
 
 	inline uint32 randomInt32(uint32 _min, uint32 _max) {
-		return _min + (rand() % (_max-_min+1));
+		return _min + (static_cast<uint32>(rand()) % (_max-_min+1));
+	}
+
+	inline uint16 randomInt16(uint16 _min, uint16 _max) {
+		return _min + (static_cast<uint16>(rand()) % (_max-_min+1));
 	}
 
 	inline float clampFloat(float val, float min, float max) {
@@ -37,18 +42,14 @@ namespace Utils {
 	static void crossoverBuffers(
 		float* target, const float* parent1, const float* parent2, uint32 buffer_size, uint32 splits
 	) {
-		uint32 i, j;
+		uint32 j;
 
 		uint32 split_points[splits];
-		for(i=0; i<splits; i++)
-			split_points[i] = 1 + ( rand() % (buffer_size-1) );//0 excluded
-		//split_points = split_points.sort((a, b) => a-b)
-		//	.filter((v, i, arr) => arr.indexOf(v, i+1) === -1);
-		std::sort( &split_points[0], &split_points[splits] );
+		for(uint32 i=0; i<splits; i++)
+			split_points[i] = randomInt32(1, buffer_size-1);
+			//1 + ( rand() % (buffer_size-1) );//0 excluded
 
-		//printf("------\n");
-		//for(uint32 x=0; x<splits; x++)
-		//	printf("s test: %d\n", split_points[x]);
+		std::sort( &split_points[0], &split_points[splits] );
 
 		const float* parents_dna[2] = {parent1, parent2};
 		uint32 start = 0, shift = 0;
@@ -62,8 +63,16 @@ namespace Utils {
 			start = split_points[j];
 		}
 
-		for(i=start; i<buffer_size; i++)
+		for(uint32 i=start; i<buffer_size; i++)
 			target[i] = parents_dna[ (j+shift)%2 ][i];
+
+		//deterministic algorithm
+		/*const float* parents_dna[2] = {parent1, parent2};
+		const uint32 chunk_size = MAX(1, buffer_size / splits);
+		for(uint32 i=0; i<buffer_size; i++) {
+			uint32 chunk_i = i / chunk_size;
+			target[i] = parents_dna[chunk_i%2][i];
+		}*/
 	}
 
 	static void mutateBuffer(float* buff, uint32 buffer_size, float mutation_chance, float mutation_scale,
@@ -73,7 +82,7 @@ namespace Utils {
 			if( Utils::randFloat() < mutation_chance ) {
 				buff[i] += Utils::randFloat() * (Utils::randFloat()*2.f - 1.f) * mutation_scale;
 				if( clamp )
-					buff[i] = clampFloat(buff[i], 0, 1);
+					buff[i] = clampFloat(buff[i], 0.f, 1.f);
 			}
 		}
 	}

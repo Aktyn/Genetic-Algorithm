@@ -1,13 +1,16 @@
 import React from 'react';
 
 import DinoGame, {Player} from './game';
-import GA, {ActivationFunctions} from './../GA/ga';
-import Individual from './../GA/individual';
+// import GA, {ActivationFunctions} from './../GA/ga';
+// import Individual from './../GA/individual';
+import {getWasmModule, HEAPs, NetworkEvolution, NetworkIndividual, onModuleLoad} from "../ga_module";
 
 const WIDTH = 800;
 const HEIGHT = 400;
 
-const POPULATION = 50;
+const POPULATION = 100;
+const TOURNAMENT_SIZE = 10;
+const SELECTION_PROBABILITY = 0.9;
 
 interface DinoState {
 	generation: number;
@@ -18,17 +21,19 @@ export default class extends React.Component<any, DinoState> {
 	private user_player: Player | null = null;
 	private ai_player: Player | null = null;
 
-	private best_individual: Individual | null = null;
+	private best_individual: NetworkIndividual | null = null;
 
 	private iterations = 1;
 
 	//private canvas: HTMLCanvasElement | null = null;
 	private ctx: CanvasRenderingContext2D | null = null;
 
-	private tick_binded = this.tick.bind(this);
+	private tick_bind = this.tick.bind(this);
 
-	private ga: GA | null = null;
-
+	// private ga: GA | null = null;
+	private evolution: NetworkEvolution | null = null;
+	private in_buffer = 0;//nullptr
+	
 	state: DinoState = {
 		generation: 0
 	};
@@ -41,17 +46,21 @@ export default class extends React.Component<any, DinoState> {
 		window.addEventListener('keydown', this.onKeyDown.bind(this), false);
 		window.addEventListener('keyup', this.onKeyUp.bind(this), false);
 
-		this.startEvolution();//temp
+		this.startEvolution().catch(console.error);//temp
 
 		//run loop
-		this.tick_binded();
+		this.tick_bind();
 	}
 
 	componentWillUnmount() {
 		window.removeEventListener('keydown', this.onKeyDown.bind(this), false);
 		window.removeEventListener('keyup', this.onKeyUp.bind(this), false);
 		this.game = null;
-		this.ga = null;
+		//this.ga = null;
+		if(this.evolution)
+			this.evolution.delete();
+		if(this.in_buffer)
+			HEAPs.free(this.in_buffer);
 	}
 
 	onKeyDown(e: KeyboardEvent) {
@@ -94,58 +103,69 @@ export default class extends React.Component<any, DinoState> {
 		this.ai_player = this.game.start(1)[0];
 	}
 
-	startEvolution() {
+	async startEvolution() {
+		await onModuleLoad();
+		const Module = getWasmModule();
+		
 		this.game = new DinoGame();
 		this.game.start(POPULATION);
 		this.user_player = null;
 		this.ai_player = null;
-		if(this.ga === null) {
-			this.ga = new GA(POPULATION, {
-				dna_splits: 2,
-				dna_twist_chance: 0.5
-			}, {
-				inputs: 4, 
-				hidden_layers: [16, 8], 
-				outputs: 2,
-				activation: ActivationFunctions.tanh
-			});
+		if(this.evolution === null) {
+			this.in_buffer = HEAPs.malloc(4 * Float32Array.BYTES_PER_ELEMENT);//4 inputs to neural network
+			
+			this.evolution = new Module.NetworkEvolution(
+				0.01,
+				0.8,
+				5,
+				0.5,
+				8.0,
+				5
+			);
+			let hidden_layers = Module.createVector();
+			//hidden_layers.push_back(32);
+			hidden_layers.push_back(16);
+			hidden_layers.push_back(8);
+			this.evolution.initPopulation(POPULATION, 4, hidden_layers, 2, Module.ACTIVATION.TANH);
+			hidden_layers.delete();
 		}
 	}
 
 	tick() {
 		if(!this.game || this.game.isOver()) {
-			requestAnimationFrame(this.tick_binded);
+			requestAnimationFrame(this.tick_bind);
 			return;
 		}
 
 		for(let i=0; i<this.iterations; i++) {
-			let players = this.game.getPlayers();
-			let individuals: Individual[] | null = null;
+			let players: Player[] = this.game.getPlayers();
+			//let individuals: Individual[] | null = null;
 
-			if(this.ga && this.user_player === null) {
-				individuals = this.ga.getIndividuals();
-				for(let i=0; i<individuals.length && i<players.length; i++) {
+			if(this.evolution && this.user_player === null) {//bots training
+				//individuals = this.ga.getIndividuals();
+				for(let i=0; i<POPULATION && i<players.length; i++) {
 					if(!players[i].alive)
 						continue;
 					let nearest_obstacle = this.game.getNearestObstacle(players[i]);
-					let bot_input = [
+					let bot_input: number[] = [
 						players[i].y, 
 						(nearest_obstacle.x+nearest_obstacle.width)-(players[i].x-players[i].width), 
 						nearest_obstacle.y,
 						this.game.getSpeed()
 					];
-					// console.log( bot_input, individuals[i].action(bot_input) );
-					let nn_result = individuals[i].action(bot_input);
+					//console.log( Float32Array.from(bot_input) );
+					HEAPs.HEAPF32.set(Float32Array.from(bot_input), this.in_buffer >> 2);
+					let nn_result_ptr = this.evolution.getIndividual(i).calculateOutput(this.in_buffer) >> 2;
 					
-					if(nn_result[1] > 0)
+					if(HEAPs.HEAPF32[nn_result_ptr+1] > 0)
 						players[i].duck(true);
 					else
 						players[i].duck(false);
-					if(nn_result[0] > 0)
+					if(HEAPs.HEAPF32[nn_result_ptr] > 0)
 						players[i].jump();
 				}
 			}
-			else if(this.ga && this.ai_player !== null && this.best_individual) {
+			else if(this.evolution && this.ai_player !== null && this.best_individual) {//user's or best ai's game
 				let nearest_obstacle = this.game.getNearestObstacle(players[i]);
 				let bot_input = [
 					players[i].y, 
@@ -153,31 +173,33 @@ export default class extends React.Component<any, DinoState> {
 					nearest_obstacle.y,
 					this.game.getSpeed()
 				];
-
-				let nn_result = this.best_individual.action(bot_input);
+				HEAPs.HEAPF32.set(Float32Array.from(bot_input), this.in_buffer >> 2);
+				let nn_result_ptr = this.best_individual.calculateOutput(this.in_buffer) >> 2;
 					
-				if(nn_result[1] > 0)
+				if(HEAPs.HEAPF32[nn_result_ptr+1] > 0)
 					this.ai_player.duck(true);
 				else
 					this.ai_player.duck(false);
-				if(nn_result[0] > 0)
+				if(HEAPs.HEAPF32[nn_result_ptr] > 0)
 					this.ai_player.jump();
 			}
 
 			this.game.update();
 
-			if(this.game.isOver() && individuals && this.ga && this.user_player === null && 
+			if(this.game.isOver() && this.evolution && this.user_player === null &&
 				this.ai_player === null) 
 			{
-				for(let i=0; i<individuals.length && i<players.length; i++) {
-					individuals[i].setScore( players[i].score );// / this.game.getScore();
+				for(let i=0; i<POPULATION && i<players.length; i++) {
+					this.evolution.getIndividual(i).setScore( players[i].score );// / this.game.getScore();
 					//console.log(individuals[i].score);
 				}
-				this.ga.evolve();
-				this.best_individual = this.ga.getBest().clone();
+				this.evolution.evolve(TOURNAMENT_SIZE, SELECTION_PROBABILITY);
+				//this.best_individual = this.evolution.cloneBest();
+				this.best_individual = this.evolution.getIndividual(0);
 
-				console.log(`evolving generation: ${this.ga.generation}, best score: ${this.ga.best_score}`);
-				this.setState({generation: this.ga.generation});
+				console.log(`evolving generation: ${this.evolution.getGeneration()}, best score: ${
+					this.evolution.getBestScore()}`);
+				this.setState({generation: this.evolution.getGeneration()});
 
 				this.game.start(POPULATION);
 			}
@@ -186,7 +208,7 @@ export default class extends React.Component<any, DinoState> {
 		if(this.ctx)
 			this.renderGame(this.game, this.ctx);
 
-		requestAnimationFrame(this.tick_binded);
+		requestAnimationFrame(this.tick_bind);
 	}
 
 	loadCanvas(el: HTMLCanvasElement | null) {
@@ -234,7 +256,7 @@ export default class extends React.Component<any, DinoState> {
 					event.nativeEvent.target.blur();
 				}}>PLAY</button>
 				<button onClick={event => {
-					this.startEvolution();
+					this.startEvolution().catch(console.error);
 					//@ts-ignore
 					event.nativeEvent.target.blur();
 				}}>RUN EVOLUTION</button>

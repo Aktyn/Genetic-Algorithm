@@ -8,6 +8,7 @@
 #define DEFAULT_MUTATION_SCALE 0.5f
 #define DEFAULT_DNA_SPLITS 20//2
 #define DEFAULT_DNA_TWIST_CHANCE 0.5f
+#define DEFAULT_PARENT_FITNESS_SCALE 2.f
 #define DEFAULT_ELITISM 1
 
 class GA {
@@ -17,6 +18,7 @@ class GA {
 			float mutation_scale;
 			uint32 dna_splits;
 			float dna_twist_chance;
+			float parent_fitness_scale;
 			uint32 elitism;
 		};
 
@@ -35,7 +37,8 @@ class GA {
 		virtual Individual* crossover(const Individual& parentA, const Individual& parentB) const = 0;
 		virtual void mutate(Individual& child) const = 0;
 	public:
-		GA(float mutation_chance, float mutation_scale, uint32 dna_splits, float dna_twist_chance, uint32 elitism);
+		GA(float mutation_chance, float mutation_scale, uint32 dna_splits, float dna_twist_chance,
+			float parent_fitness_scale, uint32 elitism);
 		virtual ~GA();
 
 		virtual void initPopulation(uint32 population_size);

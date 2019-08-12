@@ -15,10 +15,21 @@
 #else
 	//emscripten bindings
 
+	std::vector<uint32> createVector() {
+		return std::vector<uint32>();
+	}
+
 	#include "emscripten/bind.h"
 	using namespace emscripten;
 
 	EMSCRIPTEN_BINDINGS (c) {
+		register_vector<uint32>("vector<uint32>");
+		function("createVector", &createVector);
+
+		enum_<activation::FUNCTION>("ACTIVATION")
+			.value("SIGMOID", activation::SIGMOID)
+            .value("TANH", activation::TANH);
+
 		class_<Individual>("Individual")
 			.constructor<>()
 	        .function("setScore", &Individual::setScore);
@@ -26,7 +37,12 @@
 		class_<BufferIndividual, emscripten::base<Individual>>("BufferIndividual")
 			.constructor<uint32>()
 			.function("getBufferAddress", &BufferIndividual::getBufferAddress)
-	        .function("getMemoryUsed", &BufferIndividual::getMemoryUsed);//pure_virtual()
+	        .function("getMemoryUsed", &BufferIndividual::getMemoryUsed);
+
+	    class_<NetworkIndividual, emscripten::base<Individual>>("NetworkIndividual")
+			.constructor<>()
+			.function("calculateOutput", &NetworkIndividual::calculateOutput/*, allow_raw_pointers()*/)
+	        .function("getMemoryUsed", &NetworkIndividual::getMemoryUsed);
 
 		class_<GA>("GA")
 	        .function("evolve", &GA::evolve)
@@ -39,7 +55,8 @@
 			.constructor<float, float>()
 			.constructor<float, float, uint32>()
 			.constructor<float, float, uint32, float>()
-	        .constructor<float, float, uint32, float, uint32>()
+	        .constructor<float, float, uint32, float, float>()
+	        .constructor<float, float, uint32, float, float, uint32>()
 	        .function("initPopulation", &BufferEvolution::initPopulation)
 	        .function("getIndividual", &BufferEvolution::getIndividual, allow_raw_pointers());
 
@@ -49,11 +66,10 @@
 			.constructor<float, float>()
 			.constructor<float, float, uint32>()
 			.constructor<float, float, uint32, float>()
-	        .constructor<float, float, uint32, float, uint32>()
+	        .constructor<float, float, uint32, float, float>()
+	        .constructor<float, float, uint32, float, float, uint32>()
 	        .function("initPopulation", &NetworkEvolution::initPopulation)
 	        .function("getIndividual", &NetworkEvolution::getIndividual, allow_raw_pointers());
-
-	   	//register_vector<char>("vector<char>");
 	}
 
 #endif

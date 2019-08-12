@@ -3,9 +3,10 @@
 #include <stdio.h>
 
 BufferEvolution::BufferEvolution(
-	float mutation_chance, float mutation_scale, uint32 dna_splits, float dna_twist_chance, uint32 elitism
+	float mutation_chance, float mutation_scale, uint32 dna_splits, float dna_twist_chance,
+	float parent_fitness_scale, uint32 elitism
 ):
-	GA(mutation_chance, mutation_scale, dna_splits, dna_twist_chance, elitism),
+	GA(mutation_chance, mutation_scale, dna_splits, dna_twist_chance, parent_fitness_scale, elitism),
 	buffer_size(0)
 {}
 

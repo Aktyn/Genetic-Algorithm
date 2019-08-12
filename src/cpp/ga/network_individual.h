@@ -2,31 +2,40 @@
 #define NETWORK_INDIVIDUAL_H
 
 #include "individual.h"
-//#include <vector>
 
 namespace activation {
+	enum FUNCTION {
+		SIGMOID,
+		TANH
+	};
 	inline float sigmoid(float x);
 	inline float tanh(float x);
+
+	inline float activate(float x, FUNCTION func);
 }
 
 class NetworkIndividual : public Individual {
 	public:
-		enum ACTIVATION_TYPE {
-			SIGMOID,
-			TANH
-		};
-
-		struct NetworkParams {//TODO: make exposed class with addHiddenLayer function
+		struct NetworkParams {
 			uint32 inputs;
-			//std::vector<int> hidden_layers;
+			std::vector<uint32> hidden_layers;
 			uint32 outputs;
-			ACTIVATION_TYPE activation_func;
+			activation::FUNCTION activation_func;
 		};
-
 	private:
 		NetworkParams params;
+		std::vector<uint32> layer_nodes;
+
+		//2D arrays
+		float** nodes;
+		float** weights;
+
+		void randomizeWeights();
+		void copyWeights(float** source_weights);
+		void copyNodeValues(float** source_nodes);
 	public:
-		NetworkIndividual(NetworkParams params);
+		NetworkIndividual();
+		NetworkIndividual(const NetworkParams& params);
 		NetworkIndividual(const NetworkIndividual& individual);//copy
 		virtual ~NetworkIndividual();
 
@@ -34,7 +43,11 @@ class NetworkIndividual : public Individual {
 
 		virtual NetworkIndividual* clone_ptr() const;
 
+		uint32 calculateOutput(/*float* input*/uint32 input_address);
+
 		uint32 getMemoryUsed() const;
+
+		friend class NetworkEvolution;
 };
 
 

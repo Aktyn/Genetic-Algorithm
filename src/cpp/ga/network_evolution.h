@@ -1,9 +1,8 @@
 #ifndef NETWORK_EVOLUTION_HPP
 #define NETWORK_EVOLUTION_HPP
 
-#include "ga.h"
 #include "network_individual.h"
-#include <vector>
+#include "ga.h"
 
 class NetworkEvolution final : public GA {
 	private:
@@ -18,13 +17,15 @@ class NetworkEvolution final : public GA {
 			float mutation_scale = DEFAULT_MUTATION_SCALE,
 			uint32 dna_splits = DEFAULT_DNA_SPLITS,
 			float dna_twist_chance = DEFAULT_DNA_TWIST_CHANCE,
+			float parent_fitness_scale = DEFAULT_PARENT_FITNESS_SCALE,
 			uint32 elitism = DEFAULT_ELITISM
 		);
 		~NetworkEvolution();
 
 		void initPopulation(uint32 population_size, uint32 inputs, 
-			//std::vector<int> hidden_layers, 
-			uint32 outputs, NetworkIndividual::ACTIVATION_TYPE activation_func);
+			std::vector<uint32> hidden_layers, uint32 outputs,
+			activation::FUNCTION activation_func
+		);
 
 		NetworkIndividual* getIndividual(uint32 index) const;
 };

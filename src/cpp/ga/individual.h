@@ -15,6 +15,7 @@ class Individual {
 		float fitness;
 		float total_fitness_norm;
 		float parent_fitnesses[2];
+		uint16 tournament_selections;
 
 		Individual();
 		Individual(const Individual& individual);//copy
@@ -25,7 +26,7 @@ class Individual {
 		virtual Individual* clone_ptr() const;
 
 		float getScore() const;
-		float getTotalFitness() const;
+		float getTotalFitness(float parent_fitnesses_dissolve) const;
 
 		void setScore(const float score);
 };

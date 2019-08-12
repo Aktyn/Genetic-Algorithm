@@ -1,6 +1,7 @@
 #ifndef GA_TYPES_H
 #define GA_TYPES_H
 
+#include <vector>
 #include <cstdint>
 
 #ifndef nullptr

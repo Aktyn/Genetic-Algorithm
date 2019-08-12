@@ -1,6 +1,5 @@
 import * as React from 'react';
-const Module = require('../../wasm_out/ga.js')();
-console.log(Module);
+import {BufferEvolution, getWasmModule, HEAPs, onModuleLoad} from "../ga_module";
 
 const example_images = [
 	require('./../img/test.png'),
@@ -8,45 +7,15 @@ const example_images = [
 	require('./../img/psyduck.jpg'),
 ];
 
-let module_loaded = false;
-let onModuleLoaded: (() => void) | null = null;
-async function onPostRun() {
-	if(module_loaded)
-		return Promise.resolve();
-	return new Promise((resolve) => onModuleLoaded = resolve);
-}
-
-Module.addOnPostRun(() => {
-	module_loaded = true;
-	if( onModuleLoaded )
-		onModuleLoaded();
-});
-
-interface BufferIndividualSchema {
-	getMemoryUsed(): number;
-	getBufferAddress(): number;
-	setScore(score: number): void;
-}
-
-interface EvolutionSchema {
-	initPopulation(population: number, buffer_size: number): void;
-	getIndividual(index: number): BufferIndividualSchema;
-	getGeneration(): number;
-	getBestScore(): number;
-	evolve(tournament_size: number, selection_probability: number): void;
-	
-	delete(): void;
-}
-
 const INPUT_W = 100;//200
 const INPUT_H = 100;//200
 
 const POPULATION = 200;
-const TOURNAMENT_SIZE = 10;
+const TOURNAMENT_SIZE = 5;
 const SELECTION_PROBABILITY = 0.75;
 
 const ELEMENTS = 1000;
-const VALUES_PER_ELEMENT = 4;//x, y, is_visible
+const VALUES_PER_ELEMENT = 4;//x, y, alpha, size
 
 const BUFFER_SIZE = ELEMENTS * VALUES_PER_ELEMENT;
 
@@ -60,7 +29,7 @@ export default class Reconstruction extends React.Component<any, ReconstructionS
 	private source_formatted: HTMLCanvasElement | null = null;
 	private preview_container: HTMLDivElement | null = null;
 	
-	private evolution: EvolutionSchema | null = null;
+	private evolution: BufferEvolution | null = null;
 
 	private source_data: Float32Array | null = null;//greyscale values
 	private preview_ctxs: CanvasRenderingContext2D[] = [];
@@ -142,17 +111,17 @@ export default class Reconstruction extends React.Component<any, ReconstructionS
 		if( this.evolution )//already initialized
 			return;
 		
-		await onPostRun();
+		await onModuleLoad();
+		const Module = getWasmModule();
 		
-		const params = {
-			mutation_chance: 1 / ELEMENTS,//0.001,
-			mutation_scale: 0.9,
-			dna_twist_chance: 0.5,
-			dna_splits: 20,//ELEMENTS,
-			elitism: 0
-		};
-		this.evolution = new Module.BufferEvolution(params.mutation_chance, params.mutation_scale, params.dna_splits,
-			params.dna_twist_chance, params.elitism) as EvolutionSchema;
+		this.evolution = new Module.BufferEvolution(
+			1 / ELEMENTS,//0.001,
+			0.9,
+			(ELEMENTS/10)|0,
+			0.1,
+			0.5,
+			5
+		);
 		this.evolution.initPopulation(POPULATION, BUFFER_SIZE);
 		
 		this.switchTraining();
@@ -209,8 +178,9 @@ export default class Reconstruction extends React.Component<any, ReconstructionS
 			let individual = this.evolution.getIndividual(i);
 
 			//get predicted result
-			let result_heap_index = (individual.getBufferAddress() / 4) | 0;
-			let result = Module.HEAPF32;//.subarray(result_ptr/4, result_ptr/4 + BUFFER_SIZE);
+			let result_heap_index = individual.getBufferAddress() >> 2;
+				//(individual.getBufferAddress() / 4) | 0;
+			let result = HEAPs.HEAPF32;//.subarray(result_ptr/4, result_ptr/4 + BUFFER_SIZE);
 			
 			this.preview_ctxs[i].fillStyle = '#fff';
 			this.preview_ctxs[i].fillRect(0, 0, INPUT_W, INPUT_H);
