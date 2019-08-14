@@ -6,7 +6,7 @@
 	"scripts": {
 		"dev": "webpack-dev-server --config ./webpack.config.js",
 		"publish": "rm -rf dist && NODE_ENV='production' webpack --config ./webpack.config.js -p",
-		"compile_wasm": "emcc -std=c++11 -stdlib=libc++ --bind -O3 src/cpp/ga/*.cpp -o ./wasm_out/ga.js -s WASM=1 -s NO_EXIT_RUNTIME=1 -s ASSERTIONS=1 -s MODULARIZE=1 -s SINGLE_FILE=1 -s TOTAL_MEMORY=268435456 -s \"EXTRA_EXPORTED_RUNTIME_METHODS=['addOnPostRun']\"",
+		"compile_wasm": "emcc -std=c++14 -stdlib=libc++ --bind -O3 src/cpp/ga/*.cpp -o ./wasm_out/ga.js -s WASM=1 -s NO_EXIT_RUNTIME=1 -s ASSERTIONS=1 -s MODULARIZE=1 -s SINGLE_FILE=1 -s TOTAL_MEMORY=268435456 -s \"EXTRA_EXPORTED_RUNTIME_METHODS=['addOnPostRun']\"",
 		"watch:wasm": "NODE_ENV=dev nodemon --watch ./src/cpp/ --exec 'npm run compile_wasm' -e cpp,hpp,h"
 	},
 	"author": "Aktyn",

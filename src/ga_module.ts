@@ -42,10 +42,13 @@ export interface BufferIndividual extends IndividualBase {
 interface EvolutionBase<ChildClass, IndividualClass> {
 	new(mutation_chance: number, mutation_scale: number, dna_splits: number, dna_twist_chance: number,
 	    parent_fitness_scale: number, elitism: number): ChildClass;
-	evolve(tournament_size: number, selection_probability: number): void;
+	evolve(tournament_size: number, selection_probability: number, max_species: number,
+	       split_species_probability: number, merge_species_probability: number): void;
 	getIndividual(index: number): IndividualClass;
+	//getBestIndividual(): Readonly<IndividualClass>;
 	getGeneration(): number;
 	getBestScore(): number;
+	getNumberOfSpecies(): number;
 	delete(): void;
 }
 

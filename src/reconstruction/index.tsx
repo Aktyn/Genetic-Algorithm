@@ -10,9 +10,12 @@ const example_images = [
 const INPUT_W = 100;//200
 const INPUT_H = 100;//200
 
-const POPULATION = 200;
-const TOURNAMENT_SIZE = 5;
+const POPULATION = 256;
+const TOURNAMENT_SIZE = 10;
 const SELECTION_PROBABILITY = 0.75;
+const MAX_SPECIES = 8;
+const SPECIES_SPLIT_PROBABILITY = 0.2;
+const SPECIES_MERGE_PROBABILITY = 0.15;
 
 const ELEMENTS = 1000;
 const VALUES_PER_ELEMENT = 4;//x, y, alpha, size
@@ -120,7 +123,7 @@ export default class Reconstruction extends React.Component<any, ReconstructionS
 			(ELEMENTS/10)|0,
 			0.1,
 			0.5,
-			5
+			1
 		);
 		this.evolution.initPopulation(POPULATION, BUFFER_SIZE);
 		
@@ -226,10 +229,11 @@ export default class Reconstruction extends React.Component<any, ReconstructionS
 		let max_score = (this.source_data.length/step)|0;///3;
 
 		//console.time('evolving');
-		this.evolution.evolve(TOURNAMENT_SIZE, SELECTION_PROBABILITY);
+		this.evolution.evolve(TOURNAMENT_SIZE, SELECTION_PROBABILITY, MAX_SPECIES,
+			SPECIES_SPLIT_PROBABILITY, SPECIES_MERGE_PROBABILITY);
 		//console.timeEnd('evolving');
 		console.log(`generation: ${this.evolution.getGeneration()}, best score: ${this.evolution.getBestScore()|0}, ${
-			((this.evolution.getBestScore() / max_score*100)|0)}%`);
+			((this.evolution.getBestScore() / max_score*100)|0)}%, species: ${this.evolution.getNumberOfSpecies()}`);
 	}
 
 	render() {

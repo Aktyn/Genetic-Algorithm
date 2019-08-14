@@ -8,11 +8,11 @@ class BufferEvolution final : public GA {
 	private:
 		uint32 buffer_size;
 
-		Individual* createIndividual() const;
-		Individual* crossover(const Individual& parentA, const Individual& parentB) const;
-		void mutate(Individual& child) const;
+		Individual* createIndividual() const override;
+		Individual* crossover(const Individual& parentA, const Individual& parentB) const override;
+		void mutate(Individual& child) const override;
 	public:
-		BufferEvolution(
+		explicit BufferEvolution(
 			float mutation_chance = DEFAULT_MUTATION_CHANCE,
 			float mutation_scale = DEFAULT_MUTATION_SCALE,
 			uint32 dna_splits = DEFAULT_DNA_SPLITS,
@@ -20,11 +20,11 @@ class BufferEvolution final : public GA {
 			float parent_fitness_scale = DEFAULT_PARENT_FITNESS_SCALE,
 			uint32 elitism = DEFAULT_ELITISM
 		);
-		~BufferEvolution();
+		~BufferEvolution() override;
 
 		void initPopulation(uint32 population_size, uint32 buffer_size);
 
-		BufferIndividual* getIndividual(uint32 index) const;
+		BufferIndividual* getIndividual(uint32 index) const override;
 };
 
 #endif

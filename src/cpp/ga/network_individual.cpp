@@ -107,7 +107,7 @@ void NetworkIndividual::copyNodeValues(float** source_nodes) {
 }
 
 uint32 NetworkIndividual::calculateOutput(/*float* input*/uint32 input_address) {
-	float* input = (float*)input_address;
+	float* input = reinterpret_cast<float*>(input_address);
 	for(uint32 i=0; i<params.inputs; i++)
 		nodes[0][i] = input[i];
 
@@ -129,8 +129,8 @@ uint32 NetworkIndividual::calculateOutput(/*float* input*/uint32 input_address) 
 		}
 	}
 
-	return (uint32)&nodes[last_i][0];
-	//return nodes[ last_i ];//output layer values
+	return (uintptr_t)&nodes[last_i][0];
+//	return reinterpret_cast<uintptr_t>( &nodes[last_i][0] );
 }
 
 uint32 NetworkIndividual::getMemoryUsed() const {//KiB

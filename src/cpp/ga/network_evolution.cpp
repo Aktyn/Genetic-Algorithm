@@ -6,7 +6,8 @@ NetworkEvolution::NetworkEvolution(
 	float mutation_chance, float mutation_scale, uint32 dna_splits, float dna_twist_chance,
 	float parent_fitness_scale, uint32 elitism
 ):
-	GA(mutation_chance, mutation_scale, dna_splits, dna_twist_chance, parent_fitness_scale, elitism)
+	GA(mutation_chance, mutation_scale, dna_splits, dna_twist_chance, parent_fitness_scale, elitism),
+	network_params({})
 {}
 
 NetworkEvolution::~NetworkEvolution() {
@@ -60,5 +61,5 @@ void NetworkEvolution::initPopulation(uint32 population, uint32 inputs, std::vec
 }
 
 NetworkIndividual* NetworkEvolution::getIndividual(uint32 index) const {
-	return (NetworkIndividual*)individuals[index];
+	return (NetworkIndividual*)( HeapPopulation::getIndividual(index) );
 }

@@ -1,6 +1,6 @@
 #include "buffer_evolution.h"
 #include "utils.h"
-#include <stdio.h>
+#include <cstdio>
 
 BufferEvolution::BufferEvolution(
 	float mutation_chance, float mutation_scale, uint32 dna_splits, float dna_twist_chance,
@@ -10,18 +10,16 @@ BufferEvolution::BufferEvolution(
 	buffer_size(0)
 {}
 
-BufferEvolution::~BufferEvolution() {
-
-}
+BufferEvolution::~BufferEvolution() = default;
 
 Individual* BufferEvolution::createIndividual() const {
 	return new BufferIndividual( this->buffer_size );
 }
 
 Individual* BufferEvolution::crossover(const Individual& parentA, const Individual& parentB) const {
-	BufferIndividual* child = new BufferIndividual( this->buffer_size, nullptr );
-	float* bufferA = static_cast<const BufferIndividual&>(parentA).getBuffer();
-	float* bufferB = static_cast<const BufferIndividual&>(parentB).getBuffer();
+	auto* child = new BufferIndividual( this->buffer_size, nullptr );
+	float* bufferA = dynamic_cast<const BufferIndividual&>(parentA).getBuffer();
+	float* bufferB = dynamic_cast<const BufferIndividual&>(parentB).getBuffer();
 
 	if( Utils::randFloat() < GA::params.dna_twist_chance ) {
 		float* swap = bufferA;
@@ -40,7 +38,7 @@ Individual* BufferEvolution::crossover(const Individual& parentA, const Individu
 }
 
 void BufferEvolution::mutate(Individual& child) const {
-	float* buffer = static_cast<BufferIndividual&>(child).getBuffer();
+	float* buffer = dynamic_cast<BufferIndividual&>(child).getBuffer();
 	Utils::mutateBuffer(buffer, buffer_size, params.mutation_chance, params.mutation_scale);
 }
 
@@ -50,5 +48,5 @@ void BufferEvolution::initPopulation(uint32 population, uint32 _buffer_size) {
 }
 
 BufferIndividual* BufferEvolution::getIndividual(uint32 index) const {
-	return (BufferIndividual*)individuals[index];
+	return (BufferIndividual*)( HeapPopulation::getIndividual(index) );
 }

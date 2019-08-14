@@ -8,9 +8,12 @@ import {getWasmModule, HEAPs, NetworkEvolution, NetworkIndividual, onModuleLoad}
 const WIDTH = 800;
 const HEIGHT = 400;
 
-const POPULATION = 100;
-const TOURNAMENT_SIZE = 10;
-const SELECTION_PROBABILITY = 0.9;
+const POPULATION = 256;
+const TOURNAMENT_SIZE = 5;
+const SELECTION_PROBABILITY = 0.8;
+const MAX_SPECIES = 6;
+const SPECIES_SPLIT_PROBABILITY = 0.1;
+const SPECIES_MERGE_PROBABILITY = 0.09;
 
 interface DinoState {
 	generation: number;
@@ -115,15 +118,17 @@ export default class extends React.Component<any, DinoState> {
 			this.in_buffer = HEAPs.malloc(4 * Float32Array.BYTES_PER_ELEMENT);//4 inputs to neural network
 			
 			this.evolution = new Module.NetworkEvolution(
-				0.01,
+				0.001,
 				0.8,
 				5,
 				0.5,
-				8.0,
-				5
+				2.0,
+				1
 			);
 			let hidden_layers = Module.createVector();
-			//hidden_layers.push_back(32);
+			hidden_layers.push_back(8);
+			hidden_layers.push_back(16);
+			hidden_layers.push_back(32);
 			hidden_layers.push_back(16);
 			hidden_layers.push_back(8);
 			this.evolution.initPopulation(POPULATION, 4, hidden_layers, 2, Module.ACTIVATION.TANH);
@@ -190,15 +195,15 @@ export default class extends React.Component<any, DinoState> {
 				this.ai_player === null) 
 			{
 				for(let i=0; i<POPULATION && i<players.length; i++) {
-					this.evolution.getIndividual(i).setScore( players[i].score );// / this.game.getScore();
-					//console.log(individuals[i].score);
+					this.evolution.getIndividual(i).setScore( players[i].score );
 				}
-				this.evolution.evolve(TOURNAMENT_SIZE, SELECTION_PROBABILITY);
-				//this.best_individual = this.evolution.cloneBest();
+				this.evolution.evolve(TOURNAMENT_SIZE, SELECTION_PROBABILITY, MAX_SPECIES,
+					SPECIES_SPLIT_PROBABILITY, SPECIES_MERGE_PROBABILITY);
+				//this.best_individual = this.evolution.getBestIndividual();
 				this.best_individual = this.evolution.getIndividual(0);
 
 				console.log(`evolving generation: ${this.evolution.getGeneration()}, best score: ${
-					this.evolution.getBestScore()}`);
+					this.evolution.getBestScore()}, species: ${this.evolution.getNumberOfSpecies()}`);
 				this.setState({generation: this.evolution.getGeneration()});
 
 				this.game.start(POPULATION);

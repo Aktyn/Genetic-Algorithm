@@ -1,39 +1,22 @@
 #include "ga.h"
 #include "utils.h"
-#include <stdio.h>
-#include <float.h>//DBL_MAX
+#include <cfloat>
 #include <algorithm>
-#include <math.h>
-
-//#define MAX(a, b) ((a) > (b) ? (a) : (b))//moved to utils.h
-#define FOR_EACH_INDIVIDUAL for(uint32 i=0; i<population; i++)
+#include <cmath>
 
 GA::GA(
 	float mutation_chance, float mutation_scale, uint32 dna_splits, float dna_twist_chance,
 	float parent_fitness_scale, uint32 elitism
 ):
+	HeapPopulation(),
 	generation(0),
 	best_score( -FLT_MAX ),
-	population(0),
-	params( {mutation_chance, mutation_scale, dna_splits, dna_twist_chance, parent_fitness_scale, elitism} ),
-	individuals( nullptr )
+	params( {mutation_chance, mutation_scale, dna_splits, dna_twist_chance, parent_fitness_scale, elitism} )
 {
 	Utils::initRandom();
 }
 
-GA::~GA() {
-	deletePopulation();
-}
-
-void GA::deletePopulation() {
-	if( individuals != nullptr ) {
-		FOR_EACH_INDIVIDUAL {
-			if( individuals[i] )
-				delete individuals[i];
-		}
-		delete[] individuals;
-	}
-}
+GA::~GA() = default;
 
 uint32 GA::getGeneration() const {
 	return generation;
@@ -41,16 +24,6 @@ uint32 GA::getGeneration() const {
 
 float GA::getBestScore() const {
 	return best_score;
-}
-
-void GA::initPopulation(uint32 _population) {
-	this->population = _population;
-
-	deletePopulation();//delete old
-	this->individuals = new Individual*[population];
-	FOR_EACH_INDIVIDUAL {
-		this->individuals[i] = this->createIndividual();
-	}
 }
 
 //Individual* GA::selection() const {
@@ -65,12 +38,16 @@ void GA::initPopulation(uint32 _population) {
 //	return individuals[index];
 //}
 
-Individual* GA::tournament_selection(uint32 tournament_size, float selection_probability) const {
+Individual* GA::tournament_selection(HeapPopulation::Species& species,
+	uint32 tournament_size, float selection_probability) const
+{
+	const uint32 population = species.populationSize();
+
 	Individual* selected[tournament_size];
 	for(uint32 i=0; i<tournament_size; i++) {
 		uint16 attempts = 0;
 		do {
-			selected[i] = individuals[ Utils::randomInt32(0, population-1) ];
+			selected[i] = species[ Utils::randomInt32(0, population-1) ];
 			attempts++;
 		} while(
 			Utils::randomInt16(0, tournament_size*3) < selected[i]->tournament_selections &&
@@ -84,71 +61,54 @@ Individual* GA::tournament_selection(uint32 tournament_size, float selection_pro
 	{//DESC
 	    return a->total_fitness_norm > b->total_fitness_norm;
 	});
-	/*const uint32 step = population / tournament_size;
-	for(uint32 i=0; i<tournament_size; i++) {
-		uint16 attempts = 0;
-		do {
-			selected[i] = individuals[ Utils::randomInt32(step*i, step*(i+1)-1) ];
-			attempts++;
-		} while(
-			Utils::randomInt16(0, tournament_size*2 + tournament_size/2 + 2) < selected[i]->tournament_selections &&
-			attempts < 16
-		);
-
-		selected[i]->tournament_selections++;
-	}*/
 
 	float prob = Utils::randFloat();
 	float p = selection_probability;//initial probability
 	for(uint32 i=0; i<tournament_size; i++) {
 		if( prob < selection_probability )
 			return selected[i];
-		selection_probability += p * powf(1.f - p, i+1);
+		selection_probability += p * powf(1.f - p, (float)(i+1));
 	}
 	return selected[tournament_size-1];//return worst one from selected individuals
 }
 
-void GA::evolve(uint32 tournament_size, float selection_probability) {
-	if( individuals == nullptr )
-		throw "No population initialized";
-	this->generation++;
+void GA::evolveSpecies(HeapPopulation::Species& species, uint32 tournament_size, float selection_probability) {
+	const uint32 population = species.populationSize();
 
 	//find best individual's score
-	best_score = -FLT_MAX;
-	FOR_EACH_INDIVIDUAL
-		best_score = MAX( best_score, individuals[i]->getScore() );
+	float best_species_score = -FLT_MAX;
+	for(uint32 i=0; i<population; i++)
+		best_species_score = MAX( best_species_score, species[i]->getScore() );
+
+	this->best_score = MAX(this->best_score, best_species_score);
 
 	float max_total_fitness = -FLT_MAX;
-	FOR_EACH_INDIVIDUAL {
-		individuals[i]->fitness = individuals[i]->getScore() / best_score;//normalize fitness
-		if( individuals[i]->fitness != individuals[i]->fitness )//fix NaN
-			individuals[i]->fitness = 0.f;
-		max_total_fitness = MAX( max_total_fitness, individuals[i]->getTotalFitness(params.parent_fitness_scale) );
+	for(uint32 i=0; i<population; i++) {
+		species[i]->fitness = species[i]->getScore() / best_species_score;//normalize fitness
+		if( species[i]->fitness != species[i]->fitness )//fix NaN
+			species[i]->fitness = 0.f;
+		max_total_fitness = MAX( max_total_fitness, species[i]->getTotalFitness(params.parent_fitness_scale) );
 	}
 
-	FOR_EACH_INDIVIDUAL {
-		individuals[i]->total_fitness_norm =
-			individuals[i]->getTotalFitness(params.parent_fitness_scale) / max_total_fitness;
-		if( individuals[i]->total_fitness_norm != individuals[i]->total_fitness_norm )//fix NaN
-			individuals[i]->total_fitness_norm = 0.f;
+	for(uint32 i=0; i<population; i++) {
+		species[i]->total_fitness_norm =
+			species[i]->getTotalFitness(params.parent_fitness_scale) / max_total_fitness;
+		if( species[i]->total_fitness_norm != species[i]->total_fitness_norm )//fix NaN
+			species[i]->total_fitness_norm = 0.f;
 	}
 
-	std::sort(&individuals[0], &individuals[population], [](const Individual* a, const Individual* b) -> bool
-	{//DESC
-	    return a->total_fitness_norm > b->total_fitness_norm;
-	});
+	species.sortByTotalFitnessNorm();
 
 	//TEMP: test of sorting (DESC)
 	//FOR_EACH_INDIVIDUAL
-	//	printf("sorting test: %d => %f\n", i, individuals[i]->total_fitness_norm);
+	//	printf("sorting test: %d => %f\n", i, species[i]->total_fitness_norm);
 
-	//TODO: store two arrays of individuals and swap them each epoch instead of reallocating memory every time
-	Individual** new_generation = new Individual*[population];
-	//uint32 push_i = 0;
+	//Individual** new_generation = new Individual*[population];
+	species.clearIndividualsArray(species.swap_individuals);
 
-	for(uint32 i=0; i<params.elitism; i++) {
-		individuals[i]->tournament_selections = 0;//reset elite individuals before running selection algorithm
-		new_generation[/*push_i++*/i] = individuals[i];//individuals[i]->clone_ptr();
+	for(uint32 i=0; i<params.elitism && i < population; i++) {
+		species[i]->tournament_selections = 0;//reset elite individuals before running selection algorithm
+		species.swap_individuals[i] = species[i]->clone_ptr();//species[i];
 	}
 
     //breeding new generation
@@ -157,20 +117,45 @@ void GA::evolve(uint32 tournament_size, float selection_probability) {
         Individual* parentB = nullptr;
 
         do {//prevent from selecting same individual
-            parentA = this->tournament_selection(tournament_size, selection_probability);
-            parentB = this->tournament_selection(tournament_size, selection_probability);
+            parentA = this->tournament_selection(species, tournament_size, selection_probability);
+            parentB = this->tournament_selection(species, tournament_size, selection_probability);
         } while( parentA == parentB );
 
         Individual* child = this->crossover(*parentA, *parentB);
 		this->mutate( *child );
-        new_generation[i] = child;
+        species.swap_individuals[i] = child;
     }
 
 	//clear previous generation memory before swapping it
-	for(uint32 i=params.elitism; i<population; i++) {//skip copied individuals to new generation
-		if( individuals[i] != nullptr )
-			delete individuals[i];
+	/*for(uint32 i=params.elitism; i<population; i++) {//skip copied individuals to new generation
+		if( species[i] != nullptr )
+			delete species[i];
+	}*/
+	//delete[] individuals;
+    //individuals = new_generation;
+    species.swapArrays();
+}
+
+void GA::evolve(uint32 tournament_size, float selection_probability, uint32 max_species,
+	float split_species_probability, float merge_species_probability)
+{
+	if( species_heap.empty() ) {
+	    printf("Error: No population initialized");
+        throw std::exception();
+    }
+	this->generation++;
+	best_score = -FLT_MAX;
+
+	for(uint32 i=FIRST_LEAF_INDEX; i<(uint32)species_heap.size(); i++)//evolve each species separately
+		evolveSpecies(*species_heap[i], tournament_size, selection_probability);
+
+	bool split = Utils::randFloat() < split_species_probability;
+	bool merge = Utils::randFloat() < merge_species_probability;
+
+	if(split != merge) {
+		if(split && HeapPopulation::getNumberOfSpecies() < max_species)
+			HeapPopulation::split();
+		if(merge)
+			HeapPopulation::merge();
 	}
-	delete[] individuals;
-    individuals = new_generation;
 }

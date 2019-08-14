@@ -26,8 +26,13 @@ BufferIndividual::~BufferIndividual() {
 }
 
 BufferIndividual& BufferIndividual::operator=(const BufferIndividual& individual) {
+	if(this == &individual)
+		return *this;
 	((Individual&)(*this)) = individual;
 
+	this->size = individual.size;
+	if(this->array_buff)
+		delete[] this->array_buff;
 	this->array_buff = new float[individual.size];
 	for(uint32 i=0; i<size; i++)
 		this->array_buff[i] = individual.array_buff[i];
@@ -47,7 +52,8 @@ float* BufferIndividual::getBuffer() const {
 }
 
 uint32 BufferIndividual::getBufferAddress() const {
-	return (uint32)&this->array_buff[0];
+	return (uintptr_t)&this->array_buff[0];
+	//return reinterpret_cast<uintptr_t>(&array_buff[0]);
 }
 
 uint32 BufferIndividual::getMemoryUsed() const {//KiB
