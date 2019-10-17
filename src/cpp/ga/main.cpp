@@ -98,7 +98,7 @@
 
 	//run tests
 	int main() {
-		// testBufferEvolution();
+		testBufferEvolution();
 		testTspEvolution();
 
 		printf("Tests finished\n");
@@ -125,15 +125,20 @@
 			.constructor<>()
 	        .function("setScore", &Individual::setScore);
 
+		class_<NetworkIndividual, emscripten::base<Individual>>("NetworkIndividual")
+			.constructor<>()
+			.function("calculateOutput", &NetworkIndividual::calculateOutput)
+	        .function("getMemoryUsed", &NetworkIndividual::getMemoryUsed);
+
 		class_<BufferIndividual, emscripten::base<Individual>>("BufferIndividual")
 			.constructor<uint32>()
 			.function("getBufferAddress", &BufferIndividual::getBufferAddress)
 	        .function("getMemoryUsed", &BufferIndividual::getMemoryUsed);
 
-	    class_<NetworkIndividual, emscripten::base<Individual>>("NetworkIndividual")
-			.constructor<>()
-			.function("calculateOutput", &NetworkIndividual::calculateOutput/*, allow_raw_pointers()*/)
-	        .function("getMemoryUsed", &NetworkIndividual::getMemoryUsed);
+		class_<TspIndividual, emscripten::base<Individual>>("TspIndividual")
+			.constructor<uint32>()
+			.function("getBufferAddress", &TspIndividual::getBufferAddress)
+	        .function("getMemoryUsed", &TspIndividual::getMemoryUsed);
 
 		class_<HeapPopulation>("HeapPopulation")
 	        .function("getNumberOfSpecies", &HeapPopulation::getNumberOfSpecies);
@@ -164,6 +169,17 @@
 	        .constructor<float, float, uint32, float, float, uint32>()
 	        .function("initPopulation", &NetworkEvolution::initPopulation)
 	        .function("getIndividual", &NetworkEvolution::getIndividual, allow_raw_pointers());
+
+		class_<TspEvolution, emscripten::base<GA>>("TspEvolution")
+			.constructor<>()
+			.constructor<float>()
+			.constructor<float, float>()
+			.constructor<float, float, uint32>()
+			.constructor<float, float, uint32, float>()
+	        .constructor<float, float, uint32, float, float>()
+	        .constructor<float, float, uint32, float, float, uint32>()
+	        .function("initPopulation", &TspEvolution::initPopulation)
+	        .function("getIndividual", &TspEvolution::getIndividual, allow_raw_pointers());
 	}
 
 #endif

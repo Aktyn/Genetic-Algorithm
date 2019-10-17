@@ -80,7 +80,7 @@ namespace Utils {
 	{
 		uint32 split_points[splits+1];
 		for(uint32 i=0; i<splits; i++)
-			split_points[i] = randomInt32(1, buffer_size-1);//randomInt32(1, buffer_size-1);
+			split_points[i] = randomInt32(1, buffer_size-1);
 		split_points[splits++] = buffer_size;
 
 		std::sort( &split_points[0], &split_points[splits] );
@@ -88,7 +88,6 @@ namespace Utils {
 		//first copy about a half of parent1's genes
 		uint32 start = 0;
 		for(uint32 j=0; j<splits; j+=2) {
-			//printf("IterateA %u from: %u to %u\n", j, start, split_points[j]);
 			for(uint32 i=start; i<split_points[j]; i++)
 				target[i] = parent1[i];
 			if(j+1 < splits)
@@ -99,7 +98,6 @@ namespace Utils {
 		start = split_points[0];
 		uint32 parent2_start = 0;
 		for(uint32 j=1; j<splits; j+=2) {
-			//printf("IterateB %u from: %u to %u\n", j, start, split_points[j]);
 			for(uint32 i=start; i<split_points[j]; i++) {
 				//this condition should never be false, it is a safety
 				while(parent2_start < buffer_size) {
@@ -123,9 +121,11 @@ namespace Utils {
 
 					parent2_start++;
 				}
-				if(parent2_start >= buffer_size)
-					printf("hmm, %u\n", parent2_start);
-				target[i] = parent2[parent2_start++];
+				if(parent2_start >= buffer_size) {
+					printf("paren2_start exceeded array bounds; parent2_start = (%u)\n", parent2_start);
+				}
+				else
+					target[i] = parent2[parent2_start++];
 			}
 			if(j+1 < splits)
 				start = split_points[j+1];

@@ -7,6 +7,7 @@ interface ModuleInstance {
 	addOnPostRun(callback: () => void): void;
 	BufferEvolution: BufferEvolution;
 	NetworkEvolution: NetworkEvolution;
+	TspEvolution: TspEvolution;
 	
 	createVector(): Uint32Vector;
 	
@@ -16,6 +17,7 @@ interface ModuleInstance {
 	};
 	
 	HEAPF32: Float32Array;
+	HEAPU32: Uint32Array;
 	_malloc(bytes: number): number;
 	_free(ptr: number): void;
 }
@@ -39,13 +41,16 @@ export interface BufferIndividual extends IndividualBase {
 	getBufferAddress(): number;
 }
 
+export interface TspIndividual extends IndividualBase {
+	getBufferAddress(): number;
+}
+
 interface EvolutionBase<ChildClass, IndividualClass> {
 	new(mutation_chance: number, mutation_scale: number, dna_splits: number, dna_twist_chance: number,
 	    parent_fitness_scale: number, elitism: number): ChildClass;
 	evolve(tournament_size: number, selection_probability: number, max_species: number,
 	       split_species_probability: number, merge_species_probability: number): void;
 	getIndividual(index: number): IndividualClass;
-	//getBestIndividual(): Readonly<IndividualClass>;
 	getGeneration(): number;
 	getBestScore(): number;
 	getNumberOfSpecies(): number;
@@ -53,11 +58,15 @@ interface EvolutionBase<ChildClass, IndividualClass> {
 }
 
 export interface NetworkEvolution extends EvolutionBase<NetworkEvolution, NetworkIndividual> {
-	initPopulation(population: number, inputs: number, hidden_layers: Uint32Vector | number[], outputs: number,
-	              activation_func: ENUM): void;
+	initPopulation(population: number, inputs: number, hidden_layers: Uint32Vector | number[],
+		outputs: number, activation_func: ENUM): void;
 }
 
 export interface BufferEvolution extends EvolutionBase<BufferEvolution, BufferIndividual> {
+	initPopulation(population: number, buffer_size: number): void;
+}
+
+export interface TspEvolution extends EvolutionBase<TspEvolution, TspIndividual> {
 	initPopulation(population: number, buffer_size: number): void;
 }
 
@@ -69,13 +78,6 @@ WasmModule.addOnPostRun(() => {
 	module_loaded = true;
 	load_listeners.forEach(listener => listener());
 	load_listeners = [];
-	/*let vec = Module.createVector();
-	
-	let evolution: NetworkEvolutionSchema = new Module.NetworkEvolution();
-	console.log( vec );
-	vec.delete();
-	
-	evolution.delete();*/
 });
 
 export function getWasmModule() {
@@ -97,6 +99,7 @@ export function onModuleLoad(): Promise<void> {
 
 export const HEAPs = {
 	HEAPF32: WasmModule.HEAPF32,
+	HEAPU32: WasmModule.HEAPU32,
 	malloc: WasmModule._malloc,
 	free: WasmModule._free
 };
