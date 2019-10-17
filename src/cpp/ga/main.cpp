@@ -1,11 +1,11 @@
 #include "buffer_evolution.h"
 #include "network_evolution.h"
+#include "tsp_evolution.h"
 #include <cstdio>
 #include <cstring>
 
 #ifndef __EMSCRIPTEN__
-	//run tests
-	int main() {
+	void testBufferEvolution() {
 		const char* target_sentence = "EVERYBODY DANCE NOW";
 		const uint32 length = strlen(target_sentence);
 		const uint32 population = 256;
@@ -47,6 +47,59 @@
 
 			evolution.evolve(16, 0.8);
 		}
+	}
+
+	void testTspEvolution() {
+		TspEvolution evolution = TspEvolution(0.01f, 0.9f, 4, 0.5f, 2.0f, 1);
+		const uint32 population = 200;
+		const uint32 bufferSize = 40;
+		evolution.initPopulation(population, bufferSize);
+
+		const uint32 MAX_ITERATION = 10000;
+
+		for(uint32 iteration=0; iteration<MAX_ITERATION; iteration++) {
+			uint32 best_score = 0;
+			TspIndividual* best_individual = nullptr;
+
+			for(uint32 j=0; j<population; j++) {
+				TspIndividual* individual = evolution.getIndividual(j);
+				uint32* buffer = individual->getBuffer();
+
+				uint32 score = 0;
+				for(uint32 j=0; j<bufferSize; j++) {
+					if(buffer[j] == j)
+						score++;
+				}
+
+				individual->setScore( score );
+
+				if(score > best_score) {
+					best_score = score;
+					best_individual = individual;
+				}
+			}
+
+			//print best individual genome
+			if(best_individual != nullptr) {
+				uint32* buffer = best_individual->getBuffer();
+				for(uint32 j=0; j<bufferSize; j++)
+					printf("%u, ", buffer[j]);
+				printf("\n");
+			}
+
+			if(best_score == bufferSize) {
+				printf("Solution found in %u iteration\n", iteration);
+				break;
+			}
+
+			evolution.evolve(16, 0.8);
+		}
+	}
+
+	//run tests
+	int main() {
+		// testBufferEvolution();
+		testTspEvolution();
 
 		printf("Tests finished\n");
 		return 0;

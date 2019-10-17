@@ -1,5 +1,4 @@
 {
-	//"extends": "./node_modules/assemblyscript/std/assembly.json",
 	"include": [
 		"./src/**/*"
 	],
@@ -13,11 +12,6 @@
 	},
 	"compilerOptions": {
 		"baseUrl": ".",
-		"paths": {
-			"*": [
-				"types/*"
-			]
-		},
 		"target": "ES5",
 		"module": "ESNext",
 		"noLib": false,
@@ -43,7 +37,4 @@
 		"allowSyntheticDefaultImports": true,
 		"resolveJsonModule": true
 	}
-	/*"files":[
-		"./assemblyscript.d.ts"
-	]*/
 }

@@ -1,4 +1,4 @@
-# Genetic-Algorithm
-Neural network evolving with use of genetic algorithm, created from scratch.
+## Genetic-Algorithm
+Genetic algorithm used for some tasks including neural network evolution.
 
-Evolution algorithms are implemented in c++ and compiled to web assembly.
+Evolution algorithm is implemented in c++ and compiled to web assembly with Emscripten.

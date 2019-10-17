@@ -39,15 +39,15 @@ namespace Utils {
 	}
 
 	//NOTE: each buffer must have same size
-	static void crossoverBuffers(
-		float* target, const float* parent1, const float* parent2, uint32 buffer_size, uint32 splits
-	) {
+	static void crossoverBuffers(float* target, const float* parent1, const float* parent2, 
+		uint32 buffer_size, uint32 splits) 
+	{
 		uint32 j;
 
+		//TODO: try pushing buffer_size as last split_point element (lookup orderedCrossover)
 		uint32 split_points[splits];
 		for(uint32 i=0; i<splits; i++)
 			split_points[i] = randomInt32(1, buffer_size-1);
-			//1 + ( rand() % (buffer_size-1) );//0 excluded
 
 		std::sort( &split_points[0], &split_points[splits] );
 
@@ -75,14 +75,82 @@ namespace Utils {
 		}*/
 	}
 
-	static void mutateBuffer(float* buff, uint32 buffer_size, float mutation_chance, float mutation_scale,
-		bool clamp = true)
+	static void orderedCrossover(uint32* target, const uint32* parent1, const uint32* parent2,
+		uint32 buffer_size, uint32 splits) 
+	{
+		uint32 split_points[splits+1];
+		for(uint32 i=0; i<splits; i++)
+			split_points[i] = randomInt32(1, buffer_size-1);//randomInt32(1, buffer_size-1);
+		split_points[splits++] = buffer_size;
+
+		std::sort( &split_points[0], &split_points[splits] );
+
+		//first copy about a half of parent1's genes
+		uint32 start = 0;
+		for(uint32 j=0; j<splits; j+=2) {
+			//printf("IterateA %u from: %u to %u\n", j, start, split_points[j]);
+			for(uint32 i=start; i<split_points[j]; i++)
+				target[i] = parent1[i];
+			if(j+1 < splits)
+				start = split_points[j+1];
+		}
+
+		//copy rest of unique genes keeping parent2's order
+		start = split_points[0];
+		uint32 parent2_start = 0;
+		for(uint32 j=1; j<splits; j+=2) {
+			//printf("IterateB %u from: %u to %u\n", j, start, split_points[j]);
+			for(uint32 i=start; i<split_points[j]; i++) {
+				//this condition should never be false, it is a safety
+				while(parent2_start < buffer_size) {
+					bool exists = false;
+					//check whether parent2's gen was already assigned to target buffer
+					uint32 check_start = 0;
+					for(uint32 k=0; k<splits; k+=2) {
+						for(uint32 l=check_start; l<split_points[k]; l++) {
+							if(target[l] == parent2[parent2_start]) {
+								exists = true;
+								break;
+							}
+						}
+						if(exists)
+							break;
+						if(k+1 < splits)
+							check_start = split_points[k+1];
+					}
+					if( !exists )
+						break;
+
+					parent2_start++;
+				}
+				if(parent2_start >= buffer_size)
+					printf("hmm, %u\n", parent2_start);
+				target[i] = parent2[parent2_start++];
+			}
+			if(j+1 < splits)
+				start = split_points[j+1];
+		}
+	}
+
+	static void mutateBuffer(float* buff, uint32 buffer_size, float mutation_chance, 
+		float mutation_scale, bool clamp = true)
 	{
 		for(uint32 i=0; i<buffer_size; i++) {
 			if( Utils::randFloat() < mutation_chance ) {
 				buff[i] += Utils::randFloat() * (Utils::randFloat()*2.f - 1.f) * mutation_scale;
 				if( clamp )
 					buff[i] = clampFloat(buff[i], 0.f, 1.f);
+			}
+		}
+	}
+
+	static void swapMutation(uint32* buff, uint32 buffer_size, float mutation_chance) {
+		for(uint32 i=0; i<buffer_size; i++) {
+			if( Utils::randFloat() < mutation_chance ) {
+				uint32 random_index = Utils::randomInt32(0, buffer_size-1);
+				uint32 swap = buff[i];
+				buff[i] = buff[random_index];
+				buff[random_index] = swap;
 			}
 		}
 	}

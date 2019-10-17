@@ -125,58 +125,26 @@ module.exports = {
 							},
 							gifsicle: {
 								interlaced: false,
-							},
-							/*webp: {
-								quality: 75
-							}*/
+							}
 						}
 					}
 				]
-			}, {
-				test: /\.(txt)$/i,
-				use: 'raw-loader',
-			}, /*{
-				test: /\.wasm$/,
-				//use: 'file-loader'
-				type: 'javascript/auto',
-				loaders: ['arraybuffer-loader']
-			},*/{
-				test: /\.wasm$/,
-				use: [
-					{
-						loader: "file-loader",
-						options: {
-							name: '[name].[ext]',
-							//outputPath: '/',
-							useRelativePath: false,
-						}
-					}
-				],
-				type: 'javascript/auto',
-				// loaders: ['arraybuffer-loader']
-			},
+			}
 		],
 	},
 	
 	plugins: [
-		/*new webpack.DefinePlugin({
-			_GLOBALS_: JSON.stringify({
-				update_time: Date.now()
-			})
-		}),*/
 		new MiniCssExtractPlugin({
 			filename: "[name]-styles.css",
 			chunkFilename: "[id].css"
 		}),
 		new HtmlWebpackPlugin({
 			hash: isDevelopment,
-			//favicon: isDevelopment ? './src/img/favicon.png' : undefined,
+			favicon: './src/img/icon.png',
 			title: 'AI POWER',
 			minify: !isDevelopment,
 			template: './src/index.html',
 			filename: './index.html',
-			
-			//inject: 'head',
 		})
 	]
 };

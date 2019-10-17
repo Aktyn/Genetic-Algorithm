@@ -8,9 +8,10 @@ export default class extends React.Component<any, any> {
 	}
 
 	render() {
-		return <div style={{display: 'grid', gridTemplateColumns: 'auto'}}>
+		return <p style={{display: 'grid', gridTemplateColumns: 'auto'}}>
 			<Link to='/dino'>Dino game</Link>
 			<Link to='/reconstruction'>Image reconstruction</Link>
-		</div>;
+			<Link to='/tsp'>Traveling Salesman Problem</Link>
+		</p>;
 	}
 }
