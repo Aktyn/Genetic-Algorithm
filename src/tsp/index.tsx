@@ -4,16 +4,14 @@ import {TspEvolution, getWasmModule, HEAPs, onModuleLoad} from "../ga_module";
 
 const CANVAS_RES = 512;
 const POINT_SIZE = 3;//radius in pixels
-const POINTS_COUNT = 64;
+const POINTS_COUNT = 32;
 
-const POPULATION = 1000;
+const POPULATION = 1024;
 const TOURNAMENT_SIZE = 32;
-const SELECTION_PROBABILITY = 0.8;
+const SELECTION_PROBABILITY = 0.85;
 const MAX_SPECIES = 8;
 const SPECIES_SPLIT_PROBABILITY = 0.02;
-const SPECIES_MERGE_PROBABILITY = 0.015;
-
-const ITERATIONS_PER_STEP = 10;
+const SPECIES_MERGE_PROBABILITY = 0.01;
 
 const pow2 = (n: number) => n*n;
 
@@ -21,6 +19,10 @@ interface TspViewState {
     environment: TspEnvironment | null;
     ready: boolean;
     running: boolean;
+    evolution_speed: number;
+    show_naive_solution: boolean;
+    show_best_solution: boolean;
+    show_every_solution: boolean;//number of solutions = POPULATION
 }
 
 export default class TspView extends React.Component<any, TspViewState> {
@@ -29,12 +31,16 @@ export default class TspView extends React.Component<any, TspViewState> {
     private frame_index = 0;
 
     private evolution: TspEvolution | null = null;
-    private bestSolution: number[] = new Array(POINTS_COUNT).fill(0).map((_p, i) => i);
+    private bestSolution = new Array(POINTS_COUNT).fill(0).map((_p, i) => i);
 
     state: TspViewState = {
         environment: new TspEnvironment(POINTS_COUNT),
         ready: false,
-        running: false
+        running: false,
+        evolution_speed: 1,
+        show_naive_solution: false,
+        show_every_solution: false,
+        show_best_solution: true
     };
 
     async componentDidMount() {
@@ -43,12 +49,12 @@ export default class TspView extends React.Component<any, TspViewState> {
         await onModuleLoad();
         const Module = getWasmModule();
         this.evolution = new Module.TspEvolution(
-			1 / POINTS_COUNT,//0.02,
+			1 / POINTS_COUNT,// * 0.1,//0.02,
 			0.5,//does nothing in TSP
 			4,
 			0.5,
-			4.0,
-			2
+			2.0,
+			1
 		);
 		this.evolution.initPopulation(POPULATION, POINTS_COUNT);
 
@@ -64,6 +70,12 @@ export default class TspView extends React.Component<any, TspViewState> {
         if(this.state.running !== prevState.running) {
             if(this.state.running)
                 this.runTraining();
+        }
+        else if(    this.state.show_naive_solution  !== prevState.show_naive_solution   ||
+                    this.state.show_best_solution   !== prevState.show_best_solution    ||
+                    this.state.show_every_solution  !== prevState.show_every_solution)
+        {
+            this.redrawCanvas();
         }
     }
 
@@ -94,9 +106,7 @@ export default class TspView extends React.Component<any, TspViewState> {
 
         //sum distances between successive destinations
         for(let i=0; i<POINTS_COUNT-1; i++) {
-            let p1 = env.points[    heap[heap_start+i]     ];
-            let p2 = env.points[    heap[heap_start+i+1]   ];
-            dst += Math.sqrt( pow2(p1.x-p2.x) + pow2(p1.y-p2.y) );
+            dst += env.getDistance(heap[heap_start+i], heap[heap_start+i+1]);
         }
 
         return dst;
@@ -108,7 +118,9 @@ export default class TspView extends React.Component<any, TspViewState> {
         if(!this.state.environment)
             return;
 
-        for(let iteration=0; iteration<ITERATIONS_PER_STEP; iteration++) {
+        let best_distance = Number.MAX_SAFE_INTEGER;
+
+        for(let iteration=0; iteration<this.state.evolution_speed; iteration++) {
             let best_score = 0, best_index = 0;
 
             for(let i=0; i<POPULATION; i++) {
@@ -118,7 +130,6 @@ export default class TspView extends React.Component<any, TspViewState> {
 
                 let travel_distance = this.calculateTravelDistance(this.state.environment,HEAPs.HEAPU32, result_heap_index);
                 let score = POINTS_COUNT / travel_distance;
-                //console.log('individual:', i, 'travel distance:', travel_distance, 'score: ', score);
 
                 individual.setScore( score );
 
@@ -126,6 +137,8 @@ export default class TspView extends React.Component<any, TspViewState> {
                     best_score = score;
                     best_index = i;
                 }
+                if(travel_distance < best_distance)
+                    best_distance = travel_distance;
             }
 
             let best_individual = this.evolution.getIndividual(best_index);
@@ -137,8 +150,11 @@ export default class TspView extends React.Component<any, TspViewState> {
 
             this.evolution.evolve(TOURNAMENT_SIZE, SELECTION_PROBABILITY, MAX_SPECIES,
                 SPECIES_SPLIT_PROBABILITY, SPECIES_MERGE_PROBABILITY);
-            console.log(`generation: ${this.evolution.getGeneration()}, best score: ${this.evolution.getBestScore().toFixed(2)}, species: ${this.evolution.getNumberOfSpecies()}`);
         }
+
+        console.log(`generation: ${this.evolution.getGeneration()}, best distance: ${best_distance.toFixed(2)}, naive solution distance: ${
+            this.state.environment.getNaiveSolutionDistance()
+        }, species: ${this.evolution.getNumberOfSpecies()}`);
 
         this.redrawCanvas();
 
@@ -172,10 +188,33 @@ export default class TspView extends React.Component<any, TspViewState> {
         this.ctx.fillStyle = '#fff';
         this.ctx.fillRect(0, 0, CANVAS_RES, CANVAS_RES);
 
-        //draw solution path
-        this.ctx.lineWidth = 1.5;
-        this.ctx.strokeStyle = '#B39DDB';
-        this.drawRoute(this.ctx, this.state.environment, this.bestSolution);
+        //draw solutions
+        this.ctx.lineWidth = 1.2;
+
+        if(this.state.show_every_solution && this.evolution) {
+            this.ctx.strokeStyle = '#D1C4E9';
+            for(let p=0; p<POPULATION; p++) {
+                let individual = this.evolution.getIndividual(p);
+                
+                let solution: number[] = [];
+                for(let i=0; i<POINTS_COUNT; i++) {
+                    let individual_heap_index = individual.getBufferAddress() >> 2;
+                    solution.push( HEAPs.HEAPU32[individual_heap_index+i] );
+                }
+                this.drawRoute(this.ctx, this.state.environment, solution);
+            }
+        }
+        
+        if(this.state.show_naive_solution) {
+            this.ctx.strokeStyle = '#90A4AE';
+            this.drawRoute(this.ctx, this.state.environment, 
+                this.state.environment.getNaiveSolution());
+        }
+
+        if(this.state.show_best_solution) {
+            this.ctx.strokeStyle = '#8BC34A';//'#B39DDB';
+            this.drawRoute(this.ctx, this.state.environment, this.bestSolution);
+        }
 
         //draw starting points
         this.ctx.fillStyle = '#BA68C8';
@@ -194,12 +233,45 @@ export default class TspView extends React.Component<any, TspViewState> {
                     this.ctx = el.getContext('2d', {antialias: true, alpha: false}) as CanvasRenderingContext2D;
                 else
                     this.ctx = null;
-            }} />
-            {this.state.ready && <div>
-                <button onClick={() => {
-                    this.setState({running: !this.state.running});
-                }}>{this.state.running ? 'PAUSE' : 'RUN'}</button>
-            </div>}
+            }} style={{display: 'inline-block'}} />
+            {this.state.ready && <aside style={{
+                display: 'inline-block',
+                verticalAlign: 'top',
+                padding: '0px 10px'
+            }}>
+                <p>
+                    <button onClick={() => {
+                        this.setState({running: !this.state.running});
+                    }}>{this.state.running ? 'PAUSE' : 'RUN'}</button>
+                </p>
+                <p>
+                    <label>Evolution speed: </label>
+                    <input type='number' value={this.state.evolution_speed} onChange={e => {
+                        try {
+                            let evolution_speed = parseInt(e.target.value);
+                            if( !isNaN(evolution_speed) )
+                                this.setState({evolution_speed});
+                        }
+                        catch(e) {}
+                    }} max={100} min={1} />
+                </p>
+                <p style={{textAlign: 'left'}}>
+                    <label>Show best solution: </label>
+                    <input type='checkbox' onChange={e => {
+                        this.setState({show_best_solution: e.target.checked});
+                    }} checked={this.state.show_best_solution} />
+                    <br/>
+                    <label>Show every solution: </label>
+                    <input type='checkbox' onChange={e => {
+                        this.setState({show_every_solution: e.target.checked});
+                    }} checked={this.state.show_every_solution} />
+                    <br/>
+                    <label>Show naive solution: </label>
+                    <input type='checkbox' onChange={e => {
+                        this.setState({show_naive_solution: e.target.checked});
+                    }} checked={this.state.show_naive_solution} />
+                </p>
+            </aside>}
         </div>;
     }
 }

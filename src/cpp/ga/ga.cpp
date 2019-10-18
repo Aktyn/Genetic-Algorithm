@@ -26,20 +26,23 @@ float GA::getBestScore() const {
 	return best_score;
 }
 
-//Individual* GA::selection() const {
-//	uint32 index = 0;
-//    float r = Utils::randFloat();
-//    while(r > 0 && index < population) {
-//        r -= individuals[index]->total_fitness_norm;
-//		index++;
-//	}
-//
-//	index--;
-//	return individuals[index];
-//}
+/*Individual* GA::selection(HeapPopulation::Species& species) const {
+	const uint32 population = species.populationSize();
 
-Individual* GA::tournament_selection(HeapPopulation::Species& species,
-	uint32 tournament_size, float selection_probability) const
+	uint32 index = (uint32)((float)Utils::randomInt32(0, population) * 
+		Utils::randFloat() * Utils::randFloat());
+   	float r = Utils::randFloat();
+   	while(r > 0 && index < population) {
+       	r -= species[index]->total_fitness_norm;
+		index++;
+	}
+
+	index--;
+	return species[index];
+}*/
+
+Individual* GA::tournament_selection(HeapPopulation::Species& species, uint32 tournament_size,
+	float selection_probability) const
 {
 	const uint32 population = species.populationSize();
 
@@ -72,7 +75,9 @@ Individual* GA::tournament_selection(HeapPopulation::Species& species,
 	return selected[tournament_size-1];//return worst one from selected individuals
 }
 
-void GA::evolveSpecies(HeapPopulation::Species& species, uint32 tournament_size, float selection_probability) {
+void GA::evolveSpecies(HeapPopulation::Species& species, uint32 tournament_size, 
+	float selection_probability) 
+{
 	const uint32 population = species.populationSize();
 
 	//find best individual's score
@@ -117,6 +122,8 @@ void GA::evolveSpecies(HeapPopulation::Species& species, uint32 tournament_size,
         Individual* parentB = nullptr;
 
         do {//prevent from selecting same individual
+			//parentA = this->selection(species);
+			//parentB = this->selection(species);
             parentA = this->tournament_selection(species, tournament_size, selection_probability);
             parentB = this->tournament_selection(species, tournament_size, selection_probability);
         } while( parentA == parentB );
@@ -146,7 +153,8 @@ void GA::evolve(uint32 tournament_size, float selection_probability, uint32 max_
 	this->generation++;
 	best_score = -FLT_MAX;
 
-	for(uint32 i=FIRST_LEAF_INDEX; i<(uint32)species_heap.size(); i++)//evolve each species separately
+	//evolve each species separately
+	for(uint32 i=FIRST_LEAF_INDEX; i<(uint32)species_heap.size(); i++)
 		evolveSpecies(*species_heap[i], tournament_size, selection_probability);
 
 	bool split = Utils::randFloat() < split_species_probability;

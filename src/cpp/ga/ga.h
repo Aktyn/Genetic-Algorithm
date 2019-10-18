@@ -25,6 +25,7 @@ class GA : public HeapPopulation {
 		uint32 generation;
 		float best_score;
 
+		//Individual* selection(HeapPopulation::Species& species) const;
 		Individual* tournament_selection(HeapPopulation::Species& species,
 			uint32 tournament_size, float selection_probability) const;
 		void evolveSpecies(HeapPopulation::Species& species, uint32 tournament_size, float selection_probability);
