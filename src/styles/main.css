@@ -4,16 +4,17 @@
     src: url('./Roboto-Regular.ttf') format(ttf);
 }
 
-$max_w1: 768px;
-$body-font: RobotoRegular, Arial;
-
-//$bg-dark: #455A64;
+:root {
+    --max-w1: 768px;
+    --body-font: RobotoRegular, Arial;
+    --bg-dark: #455A64;
+}
 
 body, html, textarea, input, button {
     padding: 0px;
     margin: 0px;
 
-    font-family: $body-font;
+    font-family: var(--body-font);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 
@@ -25,7 +26,7 @@ body, html, textarea, input, button {
 }
 
 body, html {
-    background-color: #fff;//$bg-dark;
+    background-color: #fff;
     color: #455A64;
     text-align: center;
 }
@@ -34,13 +35,14 @@ a {
     text-decoration: none;
     color: inherit;
     outline: none;
+}
 
-    &:hover {
-        color: #ef5350;
-    }
-    &:active {
-        color: #ef9a9a;
-    }
+a:hover {
+    color: #ef5350;
+}
+
+a:active {
+    color: #ef9a9a;
 }
 
 hr {
